@@ -1,0 +1,16 @@
+{
+  "variant_id": "T05.n",
+  "task_id": "T05",
+  "kind": "near_miss",
+  "guard_test": {
+    "path": "hidden/quiet-hours.test.ts",
+    "name": "matches the documented overnight example"
+  },
+  "head_files": [
+    {
+      "path": "src/quiet-hours.ts",
+      "content": "// Minute-of-day helpers for notification scheduling.\nexport const MINUTES_PER_DAY = 1440;\n\nexport interface QuietWindow {\n  readonly start: number;\n  readonly end: number;\n}\n\nexport interface DeliveryPrefs {\n  readonly quiet: QuietWindow | null;\n  readonly bypass: readonly string[];\n}\n\nexport interface Notice {\n  readonly senderId: string;\n  readonly urgent: boolean;\n}\n\nexport interface DeliveryPlan {\n  readonly deferred: boolean;\n  readonly deliverIn: number;\n}\n\nexport function isValidMinute(value: number): boolean {\n  return Number.isInteger(value) && value >= 0 && value < MINUTES_PER_DAY;\n}\n\nfunction requireMinute(name: string, value: number): void {\n  if (!isValidMinute(value)) throw new RangeError(`${name} must be an integer minute in 0..1439`);\n}\n\n/** Minutes from `from` forward to `to`, counting across midnight: always 0..1439. */\nfunction minutesUntil(from: number, to: number): number {\n  return (to - from + MINUTES_PER_DAY) % MINUTES_PER_DAY;\n}\n\n/**\n * Rotates the day so that the window starts at minute 0. A minute is then inside the window exactly when its\n * offset from the start is smaller than the window's length. A window with start === end has length 0 and so\n * contains no minute; a window that runs past midnight simply has a length that crosses it.\n */\nfunction inQuietWindow(window: QuietWindow, minute: number): boolean {\n  const length = minutesUntil(window.start, window.end);\n  const offset = minutesUntil(window.start, minute);\n  return offset < length;\n}\n\nfunction isBypassed(prefs: DeliveryPrefs, notice: Notice): boolean {\n  return notice.urgent && prefs.bypass.includes(notice.senderId);\n}\n\nexport function planDelivery(prefs: DeliveryPrefs, notice: Notice, minuteOfDay: number): DeliveryPlan {\n  requireMinute(\"minuteOfDay\", minuteOfDay);\n  const quiet = prefs.quiet;\n  if (quiet !== null) {\n    requireMinute(\"quiet.start\", quiet.start);\n    requireMinute(\"quiet.end\", quiet.end);\n  }\n  if (quiet === null || isBypassed(prefs, notice) || !inQuietWindow(quiet, minuteOfDay)) {\n    return { deferred: false, deliverIn: 0 };\n  }\n  return { deferred: true, deliverIn: minutesUntil(minuteOfDay, quiet.end) };\n}\n"
+    }
+  ],
+  "labels_authority": "builder_dev_not_independent"
+}

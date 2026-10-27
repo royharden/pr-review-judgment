@@ -1,0 +1,20 @@
+{
+  "variant_id": "T02.d1",
+  "task_id": "T02",
+  "kind": "defect",
+  "group": "G-ASY",
+  "tag": "cache-key-missing-user",
+  "severity": "high",
+  "origin": "hand",
+  "witness_test": {
+    "path": "hidden/preferences.test.ts",
+    "name": "keeps each user's preferences apart"
+  },
+  "head_files": [
+    {
+      "path": "src/preferences.ts",
+      "content": "// Resolves a user's preferences: workspace defaults overlaid with the user's own overrides.\nexport type Preferences = Readonly<Record<string, string>>;\n\nexport interface PreferenceSource {\n  fetchDefaults(workspace: string): Promise<Preferences>;\n  fetchOverrides(workspace: string, user: string): Promise<Preferences>;\n}\n\nexport interface CacheOptions {\n  readonly ttlMs: number;\n  readonly now: () => number;\n}\n\nfunction isNotFound(error: unknown): boolean {\n  return typeof error === \"object\" && error !== null && (error as { code?: unknown }).code === \"not_found\";\n}\n\nasync function loadOverrides(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  try {\n    return await source.fetchOverrides(workspace, user);\n  } catch (error) {\n    if (isNotFound(error)) return {};\n    throw error;\n  }\n}\n\nexport async function resolvePreferences(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  const defaults = await source.fetchDefaults(workspace);\n  const overrides = await loadOverrides(source, workspace, user);\n  return { ...defaults, ...overrides };\n}\n\ninterface Entry {\n  readonly startedAt: number;\n  readonly value: Promise<Preferences>;\n}\n\nexport function createPreferenceCache(source: PreferenceSource, options: CacheOptions) {\n  const entries = new Map<string, Entry>();\n  return {\n    get(workspace: string, user: string): Promise<Preferences> {\n      const key = JSON.stringify([workspace]);\n      const now = options.now();\n      const current = entries.get(key);\n      if (current !== undefined && now < current.startedAt + options.ttlMs) return current.value;\n      const entry: Entry = { startedAt: now, value: resolvePreferences(source, workspace, user) };\n      entries.set(key, entry);\n      entry.value.catch(() => {\n        if (entries.get(key) === entry) entries.delete(key);\n      });\n      return entry.value;\n    },\n  };\n}\n"
+    }
+  ],
+  "labels_authority": "builder_dev_not_independent"
+}
