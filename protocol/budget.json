@@ -1,20 +1,22 @@
 {
   "schema": "budget/v1",
-  "requires": ["R1"],
-  "note": "Approved spend is $0 and the budget is disabled until Roy answers R1 in writing. recommended_usd values are S41-INT recommendations shown for Roy's decision; the ledger reads only approved_usd and enabled (PLAN K8).",
+  "requires": [
+    "R1"
+  ],
+  "note": "Roy approved USD 40 aggregate ceiling only. Disabled: live access and stage sub-caps remain unapproved. Stage recommended_usd is a proposal, never runtime authority. No credentials or live calls authorized.",
   "enabled": false,
   "currency": "USD",
-  "approved_by_roy": null,
-  "approved_usd": 0,
-  "recommended_usd": 150,
+  "approved_by_roy": "ROY-SPEND-CAP-20261027.md (Roy t298u, 2026-10-27 15:25 ET)",
+  "approved_usd": 40,
+  "recommended_usd": 40,
   "sub_caps": {
     "stratum_a": {
       "approved_usd": 0,
-      "recommended_usd": 60
+      "recommended_usd": 16
     },
     "stratum_b": {
       "approved_usd": 0,
-      "recommended_usd": 90,
+      "recommended_usd": 24,
       "note": "B is released by a second explicit Roy grant after the A dev pass is inside the estimability band"
     },
     "preparation": {
@@ -24,13 +26,28 @@
     }
   },
   "reservation_tokens": {
-    "review": { "input": 12000, "output": 8000 },
-    "author": { "input": 8000, "output": 16000 }
+    "review": {
+      "input": 12000,
+      "output": 8000
+    },
+    "author": {
+      "input": 8000,
+      "output": 16000
+    }
   },
-  "ledger_stages": ["preparation", "authoring", "review", "retry", "failed"],
+  "ledger_stages": [
+    "preparation",
+    "authoring",
+    "review",
+    "retry",
+    "failed"
+  ],
   "unpriced_category": "subscription_session_cost_unallocated",
   "planning_estimate_not_approval": {
-    "planning_rates_usd_per_mtok": { "input": 2, "output": 10 },
+    "planning_rates_usd_per_mtok": {
+      "input": 2,
+      "output": 10
+    },
     "per_review_reservation_usd": 0.104,
     "per_author_reservation_usd": 0.176,
     "worst_case_reviews_usd": 169.728,

@@ -5,19 +5,145 @@
   "note": "Builder lineage = S41-INT (0801) and every subagent claimed under it (PLAN §7, M2 acceptance 6). S41-INT appends every new child callsign here as soon as it is claimed, before the child does any work. Matching is by the 4-character AgentNamer id prefix (e.g. 0830), not the full callsign, so relabelling a callsign cannot escape the list. No member may sign corpus/ADMISSION.json, author held-out content, or operate corpus-verify on the held-out split (K19). Validated by src/core/admission/lineage.ts BuilderLineageSchema.",
   "root": "0801_Claude_Opus55_S41INT",
   "members": [
-    { "id": "0801", "callsign": "0801_Claude_Opus55_S41INT", "role": "S41-INT integrator + delivery lead" },
-    { "id": "0808", "callsign": "0808_Claude_Opus55_Sub_PlanReviewMed", "role": "plan reviewer (r1)" },
-    { "id": "0812", "callsign": "0812_Claude_Opus55_Sub_PlanReview2Med", "role": "plan reviewer (r2)" },
-    { "id": "0818", "callsign": "0818_Claude_Opus55_Sub_M1CoderHigh", "role": "M1 coder" },
-    { "id": "0829", "callsign": "0829_Claude_Opus55_Sub_M1ReviewMed", "role": "M1 reviewer" },
-    { "id": "0830", "callsign": "0830_Claude_Opus55_Sub_M2CoderHigh", "role": "M2 coder" },
-    { "id": "0839", "callsign": "0839_Claude_Opus55_Sub_M2ReviewMed", "role": "M2 reviewer (r1)" },
-    { "id": "0840", "callsign": "0840_Claude_Opus55_Sub_M3CoderHigh", "role": "M3 coder" },
-    { "id": "0841", "callsign": "0841_Claude_Opus55_Sub_M2ReworkXhigh", "role": "M2 rework coder (xhigh)" },
-    { "id": "0849", "callsign": "0849_Claude_Opus55_Sub_M2Review2Med", "role": "M2 reviewer (r2)" },
-    { "id": "0850", "callsign": "0850_Claude_Opus55_Sub_M5aCoderHigh", "role": "M5a dev-corpus coder" },
-    { "id": "0851", "callsign": "0851_Claude_Opus55_Sub_M3ReviewMed", "role": "M3 reviewer (r1)" },
-    { "id": "0855", "callsign": "0855_Claude_Opus55_Sub_M3ReworkXhigh", "role": "M3 rework coder (xhigh)" },
-    { "id": "0857", "callsign": "0857_Claude_Opus55_Sub_M3Review2Med", "role": "M3 reviewer (r2)" }
+    {
+      "id": "0801",
+      "callsign": "0801_Claude_Opus55_S41INT",
+      "role": "S41-INT integrator + delivery lead"
+    },
+    {
+      "id": "0808",
+      "callsign": "0808_Claude_Opus55_Sub_PlanReviewMed",
+      "role": "plan reviewer (r1)"
+    },
+    {
+      "id": "0812",
+      "callsign": "0812_Claude_Opus55_Sub_PlanReview2Med",
+      "role": "plan reviewer (r2)"
+    },
+    {
+      "id": "0818",
+      "callsign": "0818_Claude_Opus55_Sub_M1CoderHigh",
+      "role": "M1 coder"
+    },
+    {
+      "id": "0829",
+      "callsign": "0829_Claude_Opus55_Sub_M1ReviewMed",
+      "role": "M1 reviewer"
+    },
+    {
+      "id": "0830",
+      "callsign": "0830_Claude_Opus55_Sub_M2CoderHigh",
+      "role": "M2 coder"
+    },
+    {
+      "id": "0839",
+      "callsign": "0839_Claude_Opus55_Sub_M2ReviewMed",
+      "role": "M2 reviewer (r1)"
+    },
+    {
+      "id": "0840",
+      "callsign": "0840_Claude_Opus55_Sub_M3CoderHigh",
+      "role": "M3 coder"
+    },
+    {
+      "id": "0841",
+      "callsign": "0841_Claude_Opus55_Sub_M2ReworkXhigh",
+      "role": "M2 rework coder (xhigh)"
+    },
+    {
+      "id": "0849",
+      "callsign": "0849_Claude_Opus55_Sub_M2Review2Med",
+      "role": "M2 reviewer (r2)"
+    },
+    {
+      "id": "0850",
+      "callsign": "0850_Claude_Opus55_Sub_M5aCoderHigh",
+      "role": "M5a dev-corpus coder"
+    },
+    {
+      "id": "0851",
+      "callsign": "0851_Claude_Opus55_Sub_M3ReviewMed",
+      "role": "M3 reviewer (r1)"
+    },
+    {
+      "id": "0855",
+      "callsign": "0855_Claude_Opus55_Sub_M3ReworkXhigh",
+      "role": "M3 rework coder (xhigh)"
+    },
+    {
+      "id": "0857",
+      "callsign": "0857_Claude_Opus55_Sub_M3Review2Med",
+      "role": "M3 reviewer (r2)"
+    },
+    {
+      "id": "0887",
+      "callsign": "0887_Codex_gpt-61-sol_N20CodexInt41",
+      "role": "successor integrator"
+    },
+    {
+      "id": "0891",
+      "callsign": "0891_Codex_gpt-61-sol_Sub_M5aReview",
+      "role": "M5a static reviewer"
+    },
+    {
+      "id": "0892",
+      "callsign": "0892_Codex_gpt-61-sol_Sub_M4Coder",
+      "role": "M4 coder"
+    },
+    {
+      "id": "0893",
+      "callsign": "0893_Codex_gpt-61-sol_Sub_M5bCoder",
+      "role": "M5b coder"
+    },
+    {
+      "id": "0903",
+      "callsign": "0903_Codex_gpt-61-sol_Sub_M5aFix",
+      "role": "M5a rework High after failed review"
+    },
+    {
+      "id": "0908",
+      "callsign": "0908_Codex_gpt-61-sol_Sub_M5bFix",
+      "role": "M5b and M6 rework High after failed review"
+    },
+    {
+      "id": "0911",
+      "callsign": "0911_Codex_gpt-61-sol_Sub_M5aReviewHigh",
+      "role": "M5a rereview High after failed review"
+    },
+    {
+      "id": "0915",
+      "callsign": "0915_Codex_gpt-61-sol_Sub_M4Review",
+      "role": "M4 static reviewer Medium"
+    },
+    {
+      "id": "0923",
+      "callsign": "0923_Codex_gpt-61-sol_Sub_M5bM6ReviewHigh",
+      "role": "M5b M6 rereview High after failed review"
+    },
+    {
+      "id": "0927",
+      "callsign": "0927_Codex_gpt-61-sol_Sub_M4FixHigh",
+      "role": "M4 rework High after failed review"
+    },
+    {
+      "id": "0935",
+      "callsign": "0935_Codex_gpt-61-sol_Sub_M4FreezeFixHigh",
+      "role": "M4 freeze release rework High disjoint from 0927"
+    },
+    {
+      "id": "0939",
+      "callsign": "0939_Codex_gpt-61-sol_Sub_M4ReviewHigh",
+      "role": "M4 rereview High after failed review"
+    },
+    {
+      "id": "0941",
+      "callsign": "0941_Codex_gpt-61-sol_Sub_M4FixXhigh",
+      "role": "M4 correction xhigh after second failed review"
+    },
+    {
+      "id": "0942",
+      "callsign": "0942_Codex_gpt-61-sol_Sub_M4ReviewXhigh",
+      "role": "M4 rereview xhigh after second failed review"
+    }
   ]
 }

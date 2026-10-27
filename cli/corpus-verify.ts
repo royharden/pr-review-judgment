@@ -29,7 +29,7 @@
 //
 // Exit: 0 every task verified; 1 some task not verified; 2 usage error or refusal; 3 sandbox unqualified (nothing
 // ran); 4 stopped: a container could not be confirmed removed.
-import { appendFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { RoyGrantFileSchema } from "../src/core/admission/grant.ts";
@@ -47,6 +47,7 @@ import { buildReceipt, judgeTask, planVerification, runOrders, runSeed } from ".
 import type { VerificationCheck } from "../src/core/sandbox/verifyplan.ts";
 import { UsageError, parseArgs } from "./lib/args.ts";
 import { createDockerExecutor, newContainerName } from "./lib/docker.ts";
+import { inside, contained, canonicalRoot, canonicalVault } from "./lib/vault.ts";
 
 export interface VerifyIo {
   readonly cwd: string;
@@ -57,18 +58,23 @@ export interface VerifyIo {
   readonly stderr: (text: string) => void;
 }
 
-const isInsideHeldout = (p: string) => path.resolve(p).split(/[\\/]/).includes(".heldout");
+async function resolvedDestination(p: string): Promise<string> {
+  const root = await canonicalRoot(), vault = await canonicalVault(root), absolute = path.resolve(p);
+  return contained(inside(vault, absolute) ? vault : root, absolute, true);
+}
 
 async function readJson(file: string): Promise<unknown> {
   return JSON.parse(await readFile(file, "utf8")) as unknown;
 }
 
 /** Receipts-only on held-out: the admission record must be GO with no open requirements. */
-async function requireAdmissionGo(cwd: string, file: string | undefined): Promise<void> {
+async function requireAdmissionGo(cwd: string, file: string | undefined): Promise<ReturnType<typeof AdmissionRecordSchema.parse>> {
   if (file === undefined) throw new UsageError("--receipts-only --split heldout requires --admission <ADMISSION.json> with status GO");
   let json: unknown;
   try {
-    json = await readJson(path.resolve(cwd, file));
+    const root = await canonicalRoot(); const admissionPath = await contained(root, path.resolve(cwd, file));
+    if (admissionPath !== path.join(root, "corpus/ADMISSION.json")) throw new Error("noncanonical admission");
+    json = await readJson(admissionPath);
   } catch {
     throw new UsageError("admission file could not be read as JSON");
   }
@@ -76,6 +82,7 @@ async function requireAdmissionGo(cwd: string, file: string | undefined): Promis
   if (!record.success) throw new UsageError("admission file is not a valid admission/v1 record");
   if (record.data.status !== "GO") throw new UsageError(`admission status is ${record.data.status}, not GO: held-out receipts may not be read`);
   if (record.data.requires.length > 0) throw new UsageError(`admission record still requires ${record.data.requires.join(", ")}: not a usable GO`);
+  return record.data;
 }
 
 export interface GrantRef {
@@ -86,8 +93,10 @@ export interface GrantRef {
 }
 
 /** Held-out verify: read and validate Roy's R3 grant (roy-grant/v1). The grant holds no held-out content. */
-async function readRoyGrant(cwd: string, file: string): Promise<{ grant: RoyGrantFile; ref: GrantRef }> {
-  const abs = path.resolve(cwd, file);
+export async function readRoyGrant(cwd: string, file: string): Promise<{ grant: RoyGrantFile; ref: GrantRef }> {
+  const root = await canonicalRoot(); const outer = path.dirname(root);
+  const abs = await contained(outer, path.resolve(cwd, file));
+  if (inside(await canonicalVault(root), abs)) throw new UsageError("appointment grant must be public control material");
   let bytes: Buffer;
   try {
     bytes = await readFile(abs);
@@ -103,25 +112,29 @@ async function readRoyGrant(cwd: string, file: string): Promise<{ grant: RoyGran
   const parsed = RoyGrantFileSchema.safeParse(json);
   if (!parsed.success) throw new UsageError("--roy-grant file does not match roy-grant/v1 (Roy's R3 appointment)");
   const rel = path.relative(cwd, abs);
-  const inside = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
-  return { grant: parsed.data, ref: { path: (inside ? rel : abs).split(path.sep).join("/"), sha256: sha256Hex(bytes) } };
+  const relativeToCwd = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+  return { grant: parsed.data, ref: { path: (relativeToCwd ? rel : abs).split(path.sep).join("/"), sha256: sha256Hex(bytes) } };
 }
 
 async function appendAccessLog(file: string, entry: Record<string, unknown>): Promise<void> {
-  await appendFile(file, `${canonicalJson(entry)}\n`, "utf8");
+  const vault = await canonicalVault(await canonicalRoot());
+  if (inside(vault, file)) { const { open } = await import("node:fs/promises"); const h = await open(await contained(vault, file, true), "a"); try { await h.writeFile(`${canonicalJson(entry)}\n`); await h.sync(); } finally { await h.close(); } }
+  else await appendFile(file, `${canonicalJson(entry)}\n`, "utf8");
 }
 
-async function loadCorpus(dir: string, split: Split): Promise<{ task: Task; variants: Variant[] }[]> {
+async function loadCorpus(dir: string, split: Split, privateRead?: (p: string) => Promise<unknown>): Promise<{ task: Task; variants: Variant[] }[]> {
   const out: { task: Task; variants: Variant[] }[] = [];
   const entries = (await readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory() && TaskId.safeParse(e.name).success);
   for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     const taskDir = path.join(dir, e.name);
-    const task = TaskSchema.parse(await readJson(path.join(taskDir, "task.json")));
+    const read = privateRead ?? readJson;
+    const task = TaskSchema.parse(await read(path.join(taskDir, "task.json")));
     if (task.task_id !== e.name) throw new UsageError(`${e.name}/task.json has task_id ${task.task_id}`);
     if (task.split !== split) throw new UsageError(`${e.name} is split ${task.split}, not ${split}`);
-    const variantFiles = (await readdir(path.join(taskDir, "variants"))).filter((f) => f.endsWith(".json")).sort();
+    const variantDir = split === "heldout" ? await contained(await canonicalVault(await canonicalRoot()), path.join(taskDir, "variants")) : path.join(taskDir, "variants");
+    const variantFiles = (await readdir(variantDir)).filter((f) => f.endsWith(".json")).sort();
     const variants: Variant[] = [];
-    for (const f of variantFiles) variants.push(VariantSchema.parse(await readJson(path.join(taskDir, "variants", f))));
+    for (const f of variantFiles) variants.push(VariantSchema.parse(await read(path.join(variantDir, f))));
     out.push({ task, variants });
   }
   if (out.length === 0) throw new UsageError(`no tasks found in ${dir}`);
@@ -140,11 +153,27 @@ function receiptLine(r: WitnessReceipt, line: string): string {
 }
 
 async function receiptsOnly(args: ReturnType<typeof parseArgs>, split: Split, operator: string, io: VerifyIo): Promise<number> {
+  const boundary = await canonicalVault(await canonicalRoot()); const isInsideHeldout = (p: string) => inside(boundary, path.resolve(p));
   const receiptsFile = args.get("receipts");
   const accessLog = args.get("access-log");
   if (receiptsFile === undefined || accessLog === undefined) throw new UsageError("--receipts-only needs --receipts and --access-log");
-  if (split === "heldout") await requireAdmissionGo(io.cwd, args.get("admission"));
-  const text = await readFile(path.resolve(io.cwd, receiptsFile), "utf8");
+  const resolvedReceipts = await realpath(path.resolve(io.cwd, receiptsFile));
+  const resolvedLog = await resolvedDestination(path.resolve(io.cwd, accessLog));
+  const admission = split === "heldout" ? await requireAdmissionGo(io.cwd, args.get("admission")) : null;
+  if (split === "dev" && (isInsideHeldout(resolvedReceipts) || isInsideHeldout(resolvedLog))) throw new UsageError("--split dev refuses .heldout paths");
+  if (split === "heldout" && (!isInsideHeldout(resolvedReceipts) || !isInsideHeldout(resolvedLog))) throw new UsageError("held-out receipts and access log must stay in .heldout");
+  if (split === "heldout") {
+    const root = await canonicalRoot(), vault = await canonicalVault(root);
+    const appointed = await readRoyGrant(path.dirname(root), admission!.roy_grant!.path);
+    const lineage = BuilderLineageSchema.parse(await readJson(await contained(root, path.join(root, "protocol/builder-lineage.json"))));
+    if (appointed.ref.sha256 !== admission!.roy_grant!.sha256 || appointed.grant.validator !== admission!.signers.validator || appointed.grant.steward !== admission!.signers.steward || isBuilderLineage(appointed.grant.validator, lineage) || isBuilderLineage(appointed.grant.steward, lineage) || (operator !== appointed.grant.validator && !isBuilderLineage(operator, lineage))) throw new UsageError("receipts admission appointment mismatch");
+    await contained(vault, resolvedReceipts); await contained(vault, resolvedLog, true); await appendAccessLog(resolvedLog, { at: io.now(), mode: "receipts-only-begin", split, operator_callsign: operator });
+  }
+  const text = await readFile(resolvedReceipts, "utf8");
+  if (split === "heldout") {
+    const sha = sha256Hex(text);
+    if (admission!.gates.G3.sha256 !== sha || admission!.gates.G4.sha256 !== sha) throw new UsageError("receipts bytes differ from GO G3/G4 evidence");
+  }
   const lines = text.split("\n").filter((l) => l.trim() !== "");
   let witnessed = 0;
   for (const line of lines) {
@@ -154,7 +183,7 @@ async function receiptsOnly(args: ReturnType<typeof parseArgs>, split: Split, op
   }
   const fileSha = sha256Hex(text);
   io.stdout(`${canonicalJson({ receipts_sha256: fileSha, count: lines.length, witnessed })}\n`);
-  await appendAccessLog(path.resolve(io.cwd, accessLog), {
+  await appendAccessLog(resolvedLog, {
     at: io.now(),
     mode: "receipts-only",
     split,
@@ -168,6 +197,7 @@ async function receiptsOnly(args: ReturnType<typeof parseArgs>, split: Split, op
 export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Promise<number> {
   let heldout = argv.includes("heldout") || argv.includes("--split=heldout");
   try {
+    const boundary = await canonicalVault(await canonicalRoot()); const isInsideHeldout = (p: string) => inside(boundary, path.resolve(p));
     const args = parseArgs(argv, {
       values: ["split", "corpus", "image", "probe-receipt", "seed", "operator-callsign", "out", "access-log", "admission", "lineage", "receipts", "roy-grant"],
       booleans: ["receipts-only"],
@@ -200,25 +230,33 @@ export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Pr
       if (operator !== grant.validator) {
         throw new UsageError(`${operator} is not the validator appointed in the Roy grant: held-out corpus-verify runs only in that validator's session (K19)`);
       }
-      const lineage = BuilderLineageSchema.parse(await readJson(path.resolve(io.cwd, args.get("lineage") ?? "protocol/builder-lineage.json")));
+      const lineage = BuilderLineageSchema.parse(await readJson(await contained(await canonicalRoot(), path.resolve(io.cwd, args.get("lineage") ?? "protocol/builder-lineage.json"))));
       if (isBuilderLineage(operator, lineage)) {
         throw new UsageError(`${operator} is builder lineage: held-out corpus-verify runs only in the validator's session (K19)`);
       }
-      if (!isInsideHeldout(path.resolve(io.cwd, corpus)) || !isInsideHeldout(path.resolve(io.cwd, out))) {
+      if (!isInsideHeldout(await realpath(path.resolve(io.cwd, corpus))) || !isInsideHeldout(await resolvedDestination(path.resolve(io.cwd, out)))) {
         throw new UsageError("held-out --corpus and --out must be inside a .heldout directory");
       }
-      if (accessLog === undefined) throw new UsageError("--split heldout requires --access-log");
+      if (accessLog === undefined || !isInsideHeldout(await resolvedDestination(path.resolve(io.cwd, accessLog)))) throw new UsageError("--split heldout requires --access-log inside .heldout");
+      const vault = await canonicalVault(await canonicalRoot());
+      await contained(vault, path.resolve(io.cwd, corpus)); await contained(vault, path.resolve(io.cwd, out), true); await contained(vault, path.resolve(io.cwd, accessLog), true);
+      await appendAccessLog(path.resolve(io.cwd, accessLog), { at: io.now(), mode: "verify-begin", split, operator_callsign: operator, roy_grant: ref });
       royGrant = ref;
     }
+    if (split === "dev" && [corpus, out, accessLog].some((p) => p !== undefined && isInsideHeldout(path.resolve(io.cwd, p)))) throw new UsageError("--split dev refuses .heldout paths");
+    if (split === "dev") for (const p of [corpus, out, accessLog]) if (p !== undefined && isInsideHeldout(await resolvedDestination(path.resolve(io.cwd, p)))) throw new UsageError("--split dev refuses real .heldout paths");
 
-    const probeText = await readFile(path.resolve(io.cwd, probeReceipt), "utf8");
+    const probePath = split === "heldout" && isInsideHeldout(path.resolve(io.cwd, probeReceipt)) ? await contained(await canonicalVault(await canonicalRoot()), path.resolve(io.cwd, probeReceipt)) : await contained(await canonicalRoot(), path.resolve(io.cwd, probeReceipt));
+    if (split === "heldout") await appendAccessLog(path.resolve(io.cwd, accessLog!), { at: io.now(), mode: "probe-read", split, operator_callsign: operator });
+    const probeText = await readFile(probePath, "utf8");
     const qualification = qualifySandbox(probeText, image);
     if (!qualification.qualified || io.docker === null) {
       io.stderr(`corpus-verify: sandbox unqualified; nothing ran: ${[...qualification.reasons, ...(io.docker === null ? ["no Docker"] : [])].join("; ")}\n`);
       return 3;
     }
 
-    const loaded = await loadCorpus(path.resolve(io.cwd, corpus), split);
+    const privateRead = split === "heldout" ? async (p: string): Promise<unknown> => { const vault = await canonicalVault(await canonicalRoot()); const target = await contained(vault, p); await appendAccessLog(path.resolve(io.cwd, accessLog!), { at: io.now(), mode: "verify-read", split, operator_callsign: operator, path_sha256: sha256Hex(path.relative(vault, target)) }); return readJson(await contained(vault, target)); } : undefined;
+    const loaded = await loadCorpus(path.resolve(io.cwd, corpus), split, privateRead);
     const checks: VerificationCheck[] = loaded.flatMap(({ task, variants }) => planVerification(task, variants));
     const runner = createWitnessRunner({ probeReceiptText: probeText, docker: io.docker, owner: operator, newContainerName: io.newContainerName });
     const results = new Map<string, WitnessRunResult[]>();
@@ -253,7 +291,7 @@ export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Pr
       lines.push(canonicalJson(receipt));
     }
     const verdicts = loaded.map(({ task }) => judgeTask(task.task_id, checks, receipts));
-    const outDir = path.resolve(io.cwd, out);
+    const outDir = split === "heldout" ? await contained(await canonicalVault(await canonicalRoot()), path.resolve(io.cwd, out), true) : path.resolve(io.cwd, out);
     const receiptsText = lines.map((l) => `${l}\n`).join("");
     await mkdir(outDir, { recursive: true });
     await writeFile(path.join(outDir, "witness-receipts.jsonl"), receiptsText, { encoding: "utf8", flag: "wx" });
@@ -291,7 +329,7 @@ export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Pr
     return verdicts.every((v) => v.verified) ? 0 : 1;
   } catch (error) {
     // Our own refusals are safe to print. Any other error on held-out data may quote held-out content, so it is withheld.
-    const message = error instanceof UsageError || !heldout ? (error as Error).message : "failed (details withheld on the held-out split)";
+    const message = !heldout ? (error as Error).message : "failed (details withheld on the held-out split)";
     io.stderr(`corpus-verify: ${message}\n`);
     return 2;
   }

@@ -54,3 +54,18 @@ No check above has run. The approved USD 40 aggregate ceiling is recorded with e
 Source construction never implies admission, paid execution or release acceptance.
 
 Additional packet activation prerequisites (0903 static correction): appointees must audit historical pre-generation inventory/quota commitment timing (missing evidence leaves G2 unresolved), create/validate corpus/DEV-DIFFICULTY.json after R7 before held-out authoring, and co-sign/audit the G9 exact attestation plus access-log-prefix digests. CLI hashing establishes file binding only; it cannot prove procedural truth.
+
+
+## M4 review corrections (source only)
+
+The initial M4 review failed on custody/logging/redaction, durable freeze before release, B author/audit/witness provenance,
+pin consumption, actual fresh-generation history and measured execution lineage. High rework adds shared canonical-vault APIs,
+closed persisted-execution evidence, app-wide generation history, non-circular B commitments and an exclusive exact freeze/release path.
+No added control has been executed. After R7: `npx vitest run tests/cli/vault.test.ts tests/core/protocol/generation.test.ts tests/core/protocol/b-pin.test.ts tests/core/runstate/lineage.test.ts tests/core/protocol/freeze.test.ts`;
+then `npm run typecheck` and `npm run lint`. Exercise crash/owner/symlink,
+raw-request/response/artifact/ledger drift, omitted/extra generation output, MOCK stripping, stage/purpose look resets and incomplete or
+wrong-inventory release cases. See docs/CLI.md for exact source flag contracts. Do not create real held-out evidence as the builder.
+
+Explicit carryover: the 12,000-token ceiling is enforced before dispatch; separate admission-time oversize enforcement is not claimed complete. Confirm/complete that gate with the appointed validator during the admission/validation phase before GO. Current source-only construction does not authorize held-out consumption.
+
+M4 xhigh validation must cover base-identical author inputs, appointment-loader lexical binding, and an immutable admitted B task-set commitment carried across a separately derived review manifest. Exercise per-run locked-input snapshots before first reservation, historical input drift and actual installed evaluator-source drift after R7; no such execution has occurred.

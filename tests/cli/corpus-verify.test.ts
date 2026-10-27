@@ -8,9 +8,10 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as vaultPolicy from "../../cli/lib/vault.ts";
 import { runAdmit } from "../../cli/admit.ts";
-import { runCorpusVerify } from "../../cli/corpus-verify.ts";
+import { runCorpusVerify, readRoyGrant } from "../../cli/corpus-verify.ts";
 import { AdmissionRecordSchema, GATE_IDS, WitnessReceiptSchema } from "../../src/core/defectcorpus/schema.ts";
 import { SANDBOX_POLICY_SHA256 } from "../../src/core/sandbox/argv.ts";
 import { PROBE_IDS } from "../../src/core/sandbox/probes.ts";
@@ -103,6 +104,8 @@ const RECEIPTS = ".heldout/runs/verify-1/witness-receipts.jsonl";
 
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "s41-verify-test-"));
+  vi.spyOn(vaultPolicy, "canonicalRoot").mockImplementation(async () => root);
+  vi.spyOn(vaultPolicy, "canonicalVault").mockImplementation(async () => path.join(root, ".heldout"));
   out.length = 0;
   write("protocol/builder-lineage.json", readFileSync(new URL("protocol/builder-lineage.json", repoRoot), "utf8"));
   writeGrant(GRANT);
@@ -148,9 +151,16 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => { vi.restoreAllMocks(); rmSync(root, { recursive: true, force: true }); });
 
 describe("held-out verify (K19): Roy grant, no admission GO", () => {
+  it("what_bug_this_catches: appointment loading reaches the public grant without TDZ and rejects a vault grant", async () => {
+    const loaded = await readRoyGrant(root, GRANT);
+    expect(loaded.grant.validator).toBe(VALIDATOR);
+    expect(loaded.ref).toEqual({ path: GRANT, sha256: sha(GRANT) });
+    writeGrant(".heldout/MOCK-appointment.json");
+    await expect(readRoyGrant(root, ".heldout/MOCK-appointment.json")).rejects.toThrow("public control material");
+  });
   it("runs in the appointed validator's session without any admission record and records the grant", async () => {
     const { port, state } = fakeDocker();
     const code = await runCorpusVerify(verifyArgs(), io(port));
@@ -171,8 +181,9 @@ describe("held-out verify (K19): Roy grant, no admission GO", () => {
     expect(summary["operator_callsign"]).toBe(VALIDATOR);
     expect(summary["tasks"]).toEqual([{ task_id: "H99", verified: true, failing: 0 }]);
     const log = read(".heldout/access.log.jsonl").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
-    expect(log).toHaveLength(1);
-    expect(log[0]).toMatchObject({ mode: "verify", split: "heldout", operator_callsign: VALIDATOR, roy_grant: grantRef });
+    expect(log[0]).toMatchObject({ mode: "verify-begin", split: "heldout", operator_callsign: VALIDATOR, roy_grant: grantRef });
+    expect(log.at(-1)).toMatchObject({ mode: "verify", split: "heldout", operator_callsign: VALIDATOR, roy_grant: grantRef });
+    expect(log.some((entry) => entry["mode"] === "verify-read")).toBe(true);
     // Held-out test names never reach the console.
     const printed = out.join("");
     expect(printed).not.toContain("adds");
@@ -198,7 +209,7 @@ describe("held-out verify (K19): Roy grant, no admission GO", () => {
       expect(await runCorpusVerify(verifyArgs(overrides), io(port))).toBe(2);
       expect(state.runs).toBe(0);
     }
-    expect(out.join("")).toContain("builder lineage");
+    expect(out.join("")).toContain("details withheld");
   });
 });
 
@@ -235,7 +246,9 @@ describe("grant -> validator verify -> admit GO -> builder receipts-only", () =>
 
     expect(await receiptsOnly("corpus/ADMISSION.json")).toBe(0);
     const log = read(".heldout/access.log.jsonl").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
-    expect(log.map((e) => e["mode"])).toEqual(["verify", "receipts-only"]);
+    expect(log.some((e) => e["mode"] === "verify-begin")).toBe(true);
+    expect(log.some((e) => e["mode"] === "receipts-only-begin")).toBe(true);
+    expect(log.at(-1)?.["mode"]).toBe("receipts-only");
 
     // A GO-shaped record that still lists open requirements is not a usable GO (schema + CLI check).
     write("corpus/ADMISSION-open.json", { ...record, requires: ["R7"] });

@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as vaultPolicy from "../../cli/lib/vault.ts";
 import { runAdmit } from "../../cli/admit.ts";
 import { AdmissionRecordSchema, GATE_IDS } from "../../src/core/defectcorpus/schema.ts";
 import type { AdmissionRecord } from "../../src/core/defectcorpus/schema.ts";
@@ -71,6 +72,9 @@ function writeReceipts(gate: "G3" | "G4", lines: string[]): void {
 
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "s41-admit-test-"));
+  // Test-only roots replace discovery; real containment and CLI checks still run against the temp fixture.
+  vi.spyOn(vaultPolicy, "canonicalRoot").mockImplementation(async () => root);
+  vi.spyOn(vaultPolicy, "canonicalVault").mockImplementation(async () => path.join(root, ".heldout"));
   out.length = 0;
   for (const dir of ["protocol/grants", "corpus", "evidence"]) mkdirSync(path.join(root, dir), { recursive: true });
   writeFileSync(path.join(root, "protocol/builder-lineage.json"), readFileSync(new URL("protocol/builder-lineage.json", repoRoot)));
@@ -81,7 +85,7 @@ beforeEach(() => {
   writeReceipts("G4", receipts);
 });
 
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => { vi.restoreAllMocks(); rmSync(root, { recursive: true, force: true }); });
 
 describe("admit", () => {
   it("stays PENDING_ROY_APPOINTMENT without a Roy grant, even with all evidence", async () => {
