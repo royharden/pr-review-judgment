@@ -1,0 +1,20 @@
+{
+  "variant_id": "T05.d2",
+  "task_id": "T05",
+  "kind": "defect",
+  "group": "G-BND",
+  "tag": "overnight-window-shifted",
+  "severity": "medium",
+  "origin": "hand",
+  "witness_test": {
+    "path": "hidden/quiet-hours.test.ts",
+    "name": "holds a notice at the first minute of an overnight window"
+  },
+  "head_files": [
+    {
+      "path": "src/quiet-hours.ts",
+      "content": "// Minute-of-day helpers for notification scheduling.\nexport const MINUTES_PER_DAY = 1440;\n\nexport interface QuietWindow {\n  readonly start: number;\n  readonly end: number;\n}\n\nexport interface DeliveryPrefs {\n  readonly quiet: QuietWindow | null;\n  readonly bypass: readonly string[];\n}\n\nexport interface Notice {\n  readonly senderId: string;\n  readonly urgent: boolean;\n}\n\nexport interface DeliveryPlan {\n  readonly deferred: boolean;\n  readonly deliverIn: number;\n}\n\nexport function isValidMinute(value: number): boolean {\n  return Number.isInteger(value) && value >= 0 && value < MINUTES_PER_DAY;\n}\n\nfunction requireMinute(name: string, value: number): void {\n  if (!isValidMinute(value)) throw new RangeError(`${name} must be an integer minute in 0..1439`);\n}\n\nfunction inQuietWindow(window: QuietWindow, minute: number): boolean {\n  if (window.start === window.end) return false;\n  if (window.start < window.end) return minute >= window.start && minute < window.end;\n  return minute > window.start || minute <= window.end;\n}\n\nfunction minutesUntil(from: number, to: number): number {\n  return (to - from + MINUTES_PER_DAY) % MINUTES_PER_DAY;\n}\n\nconst DELIVER_NOW: DeliveryPlan = { deferred: false, deliverIn: 0 };\n\nexport function planDelivery(prefs: DeliveryPrefs, notice: Notice, minuteOfDay: number): DeliveryPlan {\n  requireMinute(\"minuteOfDay\", minuteOfDay);\n  const quiet = prefs.quiet;\n  if (quiet === null) return DELIVER_NOW;\n  requireMinute(\"quiet.start\", quiet.start);\n  requireMinute(\"quiet.end\", quiet.end);\n  if (!inQuietWindow(quiet, minuteOfDay)) return DELIVER_NOW;\n  if (notice.urgent && prefs.bypass.includes(notice.senderId)) return DELIVER_NOW;\n  return { deferred: true, deliverIn: minutesUntil(minuteOfDay, quiet.end) };\n}\n"
+    }
+  ],
+  "labels_authority": "builder_dev_not_independent"
+}
