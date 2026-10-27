@@ -376,6 +376,7 @@ export const AdmissionRecordSchema = z
     }
     if (r.roy_grant === null) ctx.addIssue({ code: "custom", path: ["roy_grant"], message: "GO requires a Roy grant reference" });
     if (r.decided_at === null) ctx.addIssue({ code: "custom", path: ["decided_at"], message: "GO requires decided_at" });
+    if (r.requires.length > 0) ctx.addIssue({ code: "custom", path: ["requires"], message: "GO cannot have open requirements" });
   });
 export type AdmissionRecord = z.infer<typeof AdmissionRecordSchema>;
 

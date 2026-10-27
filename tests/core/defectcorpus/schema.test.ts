@@ -216,6 +216,7 @@ describe("AdmissionRecordSchema and corpus/ADMISSION.json", () => {
     const go = {
       ...pending,
       status: "GO",
+      requires: [],
       gates,
       signers: { steward: "AA01_Gemini_Steward", validator: "AB02_Grok_Validator" },
       roy_grant: { path: "grants/R3.md", sha256: HASH2 },
@@ -224,6 +225,7 @@ describe("AdmissionRecordSchema and corpus/ADMISSION.json", () => {
     expect(AdmissionRecordSchema.safeParse(go).success).toBe(true);
     expect(AdmissionRecordSchema.safeParse({ ...go, signers: { steward: "AA01_X", validator: "AA01_X" } }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, roy_grant: null }).success).toBe(false);
+    expect(AdmissionRecordSchema.safeParse({ ...go, requires: ["R3"] }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, gates: { ...gates, G9: { evidence: null, sha256: null } } }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, gates: { ...gates, G1: { evidence: "/abs.json", sha256: HASH } } }).success).toBe(false);
   });
