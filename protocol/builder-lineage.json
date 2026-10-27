@@ -14,6 +14,10 @@
     { "id": "0839", "callsign": "0839_Claude_Opus55_Sub_M2ReviewMed", "role": "M2 reviewer (r1)" },
     { "id": "0840", "callsign": "0840_Claude_Opus55_Sub_M3CoderHigh", "role": "M3 coder" },
     { "id": "0841", "callsign": "0841_Claude_Opus55_Sub_M2ReworkXhigh", "role": "M2 rework coder (xhigh)" },
-    { "id": "0849", "callsign": "0849_Claude_Opus55_Sub_M2Review2Med", "role": "M2 reviewer (r2)" }
+    { "id": "0849", "callsign": "0849_Claude_Opus55_Sub_M2Review2Med", "role": "M2 reviewer (r2)" },
+    { "id": "0850", "callsign": "0850_Claude_Opus55_Sub_M5aCoderHigh", "role": "M5a dev-corpus coder" },
+    { "id": "0851", "callsign": "0851_Claude_Opus55_Sub_M3ReviewMed", "role": "M3 reviewer (r1)" },
+    { "id": "0855", "callsign": "0855_Claude_Opus55_Sub_M3ReworkXhigh", "role": "M3 rework coder (xhigh)" },
+    { "id": "0857", "callsign": "0857_Claude_Opus55_Sub_M3Review2Med", "role": "M3 reviewer (r2)" }
   ]
 }
