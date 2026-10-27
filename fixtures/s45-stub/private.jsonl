@@ -1,0 +1,3 @@
+{"mock":true,"id":"c_74bae5a5d1","taskId":"T01","variant_kind":"clean","regions":[],"labels_authority":"builder_dev_not_independent","witness_receipt":null,"validation_status":"NOT RUN"}
+{"mock":true,"id":"c_d0487e6298","taskId":"T01","variant_kind":"defect","regions":[{"path":"src/burst-limiter.ts","startLine":52,"endLine":52}],"labels_authority":"builder_dev_not_independent","witness_receipt":null,"validation_status":"NOT RUN"}
+{"mock":true,"id":"c_8cd930b645","taskId":"T02","variant_kind":"defect","regions":[{"path":"src/preferences.ts","startLine":42,"endLine":42}],"labels_authority":"builder_dev_not_independent","witness_receipt":null,"validation_status":"NOT RUN"}

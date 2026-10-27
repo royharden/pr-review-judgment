@@ -1,0 +1,131 @@
+{
+  "schema": "mock-b-recordings/v1",
+  "mock": true,
+  "synthetic": true,
+  "task_id": "T01",
+  "split": "dev",
+  "author_recordings": [
+    {
+      "mock": true,
+      "synthetic": true,
+      "task_id": "T01",
+      "author": "A",
+      "attempt": 1,
+      "status": "recorded_mock",
+      "output": {
+        "files": [
+          {
+            "path": "src/burst-limiter.ts",
+            "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used < config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+          }
+        ]
+      },
+      "validation": {
+        "status": "NOT RUN",
+        "reason": "Dirty Mode; no witness or sandbox execution"
+      },
+      "seeds": [
+        {
+          "ordinal": 1,
+          "mock": true,
+          "head_files": [
+            {
+              "path": "src/burst-limiter.ts",
+              "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used <= config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+            }
+          ],
+          "regions": [
+            {
+              "path": "src/burst-limiter.ts",
+              "startLine": 52,
+              "endLine": 52
+            }
+          ],
+          "witness_status": "NOT RUN",
+          "admitted": false
+        },
+        {
+          "ordinal": 2,
+          "mock": true,
+          "head_files": [
+            {
+              "path": "src/burst-limiter.ts",
+              "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor((now - 1) / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used < config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+            }
+          ],
+          "regions": [
+            {
+              "path": "src/burst-limiter.ts",
+              "startLine": 34,
+              "endLine": 34
+            }
+          ],
+          "witness_status": "NOT RUN",
+          "admitted": false
+        }
+      ]
+    },
+    {
+      "mock": true,
+      "synthetic": true,
+      "task_id": "T01",
+      "author": "B",
+      "attempt": 1,
+      "status": "recorded_mock",
+      "output": {
+        "files": [
+          {
+            "path": "src/burst-limiter.ts",
+            "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used < config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+          }
+        ]
+      },
+      "validation": {
+        "status": "NOT RUN",
+        "reason": "Dirty Mode; no witness or sandbox execution"
+      },
+      "seeds": [
+        {
+          "ordinal": 1,
+          "mock": true,
+          "head_files": [
+            {
+              "path": "src/burst-limiter.ts",
+              "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used <= config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+            }
+          ],
+          "regions": [
+            {
+              "path": "src/burst-limiter.ts",
+              "startLine": 52,
+              "endLine": 52
+            }
+          ],
+          "witness_status": "NOT RUN",
+          "admitted": false
+        },
+        {
+          "ordinal": 2,
+          "mock": true,
+          "head_files": [
+            {
+              "path": "src/burst-limiter.ts",
+              "content": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor((now - 1) / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used < config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+            }
+          ],
+          "regions": [
+            {
+              "path": "src/burst-limiter.ts",
+              "startLine": 34,
+              "endLine": 34
+            }
+          ],
+          "witness_status": "NOT RUN",
+          "admitted": false
+        }
+      ]
+    }
+  ],
+  "pin": null,
+  "note": "Synthetic author outputs copied from builder dev examples, not independent author measurements; no B-PIN or admission claimed."
+}

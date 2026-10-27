@@ -312,3 +312,11 @@ describe("results.json", () => {
     expect(json.measured.stratumB.mcnemar.map((m) => m.source.slotCount)).toEqual([2, 2]);
   });
 });
+
+it("MOCK source rows stamp every field, including the id and slot count", () => {
+  const md = renderResultsMarkdown({ meta, measured: null, mock: fullAggregate(true) });
+  const sources = md.slice(md.indexOf("### Sources"));
+  const rows = sources.split("\n").filter((line) => line.startsWith("| MOCK s"));
+  expect(rows.length).toBeGreaterThan(0);
+  for (const line of rows) for (const cell of line.split("|").slice(1, -1)) expect(cell.trim().startsWith("MOCK ")).toBe(true);
+});

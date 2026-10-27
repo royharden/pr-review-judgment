@@ -1,0 +1,54 @@
+{
+  "schema": "diff-heuristic-freeze/v1",
+  "version": "diff-heuristic/v1",
+  "frozen_from": "plan_and_public_dev_only",
+  "heldout_used": false,
+  "ruleset_sha256": "a23deb05becb4dc0e3905eac1a12e5e612dccf96b1b53e56fb3f1134eb752df6",
+  "rules": [
+    {
+      "id": "removed-guard",
+      "description": "a removed if-guard that exits (return/throw/continue/break) is not replaced by another if",
+      "patterns": [
+        "\\bif\\s*\\(",
+        "\\b(return|throw|continue|break)\\b"
+      ]
+    },
+    {
+      "id": "removed-await",
+      "description": "the added side has fewer await than the removed side",
+      "patterns": [
+        "\\bawait\\b"
+      ]
+    },
+    {
+      "id": "flipped-operator",
+      "description": "a removed/added line pair differs only in a comparison or logical operator, or only in a negation",
+      "patterns": [
+        "===|!==|==|!=|<=|>=|&&|\\|\\||\\?\\?|<|>",
+        "=>",
+        "!(?!=)"
+      ]
+    },
+    {
+      "id": "dropped-throw",
+      "description": "the added side has fewer throw than the removed side",
+      "patterns": [
+        "\\bthrow\\b"
+      ]
+    },
+    {
+      "id": "emptied-catch",
+      "description": "an added empty catch block that was not empty before, or a removal that empties a catch body",
+      "patterns": [
+        "\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}",
+        "\\bcatch\\s*(\\([^)]*\\))?\\s*\\{\\s*$",
+        "^\\s*\\}"
+      ]
+    }
+  ],
+  "source_bytes_sha256": {
+    "src/core/reviewjudge/baselines/diffHeuristic.ts": "a53b593db16b7db3890782022c7035afc6122a1e05bfcb6ca74f9966128b52a8",
+    "src/core/reviewjudge/baselines/diffparse.ts": "5e9023f4cb43ffa4e27c60d6ac06b92b4a3d0b28432417aedf85a4526a24a084"
+  },
+  "validation_status": "static byte hashes only; runtime ruleset equivalence deferred"
+}

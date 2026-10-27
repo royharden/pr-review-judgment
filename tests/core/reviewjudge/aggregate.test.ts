@@ -4,6 +4,7 @@ import {
   DELTA_SELF_LABEL,
   NEG_DELTA_SELF_LABEL,
   aggregate,
+  sourceOf,
   crossedContrast,
   type CleanSlotRecord,
   type DefectSlotRecord,
@@ -221,6 +222,7 @@ describe("stratum A", () => {
     const diff = aggregate({ defectSlots: records, cleanSlots: [], draws: DRAWS }).stratumA.modelDifference!;
     expect(diff.tasks).toEqual(["H01", "H02"]);
     expect(diff.excludedTasks).toEqual(["H03"]);
+    expect(diff.difference.source).toEqual(sourceOf(records.filter((r) => r.taskId !== "H03")));
     expect(diff.difference.value).toEqual({ kind: "value", value: 0.5 });
   });
 
@@ -297,4 +299,15 @@ describe("sources", () => {
     expect(() => aggregate({ defectSlots: [{ ...d, author: "A" }], cleanSlots: [] })).toThrow();
     expect(() => aggregate({ defectSlots: [{ ...d, stratum: "B" }], cleanSlots: [] })).toThrow();
   });
+});
+
+it("burden findings use only valid replies, while tokens use replies reporting usage", () => {
+  const valid = defect({ stratum: "A", arm: "A", taskId: "T01", outcome: "HIT" });
+  const invalid = defect({ stratum: "A", arm: "A", taskId: "T01", outcome: "UNAVAILABLE" });
+  const missing = clean({ stratum: "A", arm: "A", taskId: "T01", status: "missing" });
+  const burden = aggregate({ defectSlots: [valid, invalid], cleanSlots: [missing], draws: DRAWS }).stratumA.arms[0]!.burden;
+  expect(burden.requiresChangeFindingsPerValidReply.value).toEqual({ kind: "value", value: 1 });
+  expect(burden.requiresChangeFindingsPerValidReply.source).toEqual(sourceOf([valid]));
+  expect(burden.outputTokensPerReplyWithUsage.n).toBe(2);
+  expect(burden.outputTokensPerReplyWithUsage.source).toEqual(sourceOf([valid, invalid]));
 });

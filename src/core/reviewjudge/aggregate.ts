@@ -255,25 +255,26 @@ function flipRates(defects: readonly DefectSlotRecord[], cleans: readonly CleanS
 }
 
 export interface Burden {
-  readonly requiresChangeFindingsPerChange: Cell;
-  readonly outputTokensPerChange: Cell;
+  readonly requiresChangeFindingsPerValidReply: Cell;
+  readonly outputTokensPerReplyWithUsage: Cell;
 }
 
 function burden(defects: readonly DefectSlotRecord[], cleans: readonly CleanSlotRecord[]): Burden {
-  const all: { readonly requiresChangeFindings: number; readonly outputTokens: number | null; readonly slot: SlotProvenance }[] = [
-    ...defects.map((r) => ({ requiresChangeFindings: r.requiresChangeFindings, outputTokens: r.outputTokens, slot: r })),
-    ...cleans.map((r) => ({ requiresChangeFindings: r.requiresChangeFindings, outputTokens: r.outputTokens, slot: r })),
+  // Findings use valid replies only; tokens use every reply with reported usage, including non-valid replies.
+  const all = [
+    ...defects.map((r) => ({ valid: r.outcomes.k2 !== "UNAVAILABLE", requiresChangeFindings: r.requiresChangeFindings, outputTokens: r.outputTokens, slot: r })),
+    ...cleans.map((r) => ({ valid: r.status === "valid", requiresChangeFindings: r.requiresChangeFindings, outputTokens: r.outputTokens, slot: r })),
   ];
-  const slots = all.map((x) => x.slot);
+  const valid = all.filter((x) => x.valid);
   const withUsage = all.filter((x) => x.outputTokens !== null);
   return {
-    requiresChangeFindingsPerChange: cell(
-      ratio(all.reduce((s, x) => s + x.requiresChangeFindings, 0), all.length, "no slots"),
-      all.length,
+    requiresChangeFindingsPerValidReply: cell(
+      ratio(valid.reduce((s, x) => s + x.requiresChangeFindings, 0), valid.length, "no valid replies"),
+      valid.length,
       "slots",
-      slots,
+      valid.map((x) => x.slot),
     ),
-    outputTokensPerChange: cell(
+    outputTokensPerReplyWithUsage: cell(
       ratio(withUsage.reduce((s, x) => s + x.outputTokens!, 0), withUsage.length, "no slot reported usage"),
       withUsage.length,
       "slots",
@@ -348,7 +349,7 @@ function armSummaryA(arm: string, defects: readonly DefectSlotRecord[], cleans: 
   };
 }
 
-function pairedDifferenceA(first: ArmSummaryA, second: ArmSummaryA, records: readonly SlotProvenance[], options: BootstrapOptions): PairedDifferenceA {
+function pairedDifferenceA(first: ArmSummaryA, second: ArmSummaryA, records: readonly DefectSlotRecord[], options: BootstrapOptions): PairedDifferenceA {
   const a = new Map(first.perTaskHit.k2.map((t) => [t.taskId, t.value]));
   const b = new Map(second.perTaskHit.k2.map((t) => [t.taskId, t.value]));
   const tasks = [...a.keys()].filter((t) => b.has(t)).sort(compareCodeUnits);
@@ -363,7 +364,7 @@ function pairedDifferenceA(first: ArmSummaryA, second: ArmSummaryA, records: rea
     label: `${first.arm} − ${second.arm} (descriptive paired difference, HIT k=2)`,
     tasks,
     excludedTasks: excluded,
-    difference: cell(boot.point, tasks.length, "tasks", records, intervalOf(boot)),
+    difference: cell(boot.point, tasks.length, "tasks", records.filter((r) => tasks.includes(r.taskId)), intervalOf(boot)),
   };
 }
 

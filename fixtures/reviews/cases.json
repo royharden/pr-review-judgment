@@ -1,0 +1,231 @@
+[
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-clean",
+    "taskId": "T01",
+    "label": "clean",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "clean",
+    "spec": "# Limit requests per (tenant, region) and add a grace allowance\n\nToday `createLimiter` keeps one counter per tenant and opens a window at a tenant's first request. Please change\n`src/burst-limiter.ts` as follows.\n\n1. `check(tenant, region, now)` takes the region as a new second argument, and counters are kept per\n   (tenant, region) pair. Tenant and region are arbitrary strings and may contain any character, including `:`\n   and `\\`. Two different pairs must never share a counter.\n2. Windows are aligned to the clock: the window containing `now` starts at `Math.floor(now / windowMs) * windowMs`\n   and covers `windowMs` milliseconds. A request at exactly `start + windowMs` belongs to the next window.\n3. Each pair may make `limit` requests per window. Each of these returns\n   `{ allowed: true, remaining: limit - usedSoFar, grace: false }`, where `usedSoFar` includes this request.\n4. Grace: once a pair has used its full limit in the current window, it may make up to `grace` more requests in\n   that window, but only if it used at most half of its limit in the immediately preceding window\n   (`previousUsed * 2 <= limit`). A pair with no requests in the immediately preceding window (a new pair, or a gap\n   of one or more whole windows) counts as having used 0 there. A grace request returns\n   `{ allowed: true, remaining: 0, grace: true }`.\n5. Every other request is refused with `{ allowed: false, remaining: 0, grace: false }`.\n6. `createLimiter({ limit, windowMs, grace })` validates its config: `limit` and `windowMs` must be integers >= 1\n   and `grace` an integer >= 0. Anything else throws a `RangeError`.\n",
+    "files": [
+      {
+        "path": "src/burst-limiter.ts",
+        "base": "// Fixed-window request limiter, one counter per tenant.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, now: number): Decision {\n      let state = windows.get(tenant);\n      if (state === undefined || now - state.start >= config.windowMs) {\n        state = { start: now, used: 0 };\n        windows.set(tenant, state);\n      }\n      if (state.used >= config.limit) return { allowed: false, remaining: 0 };\n      state.used += 1;\n      return { allowed: true, remaining: config.limit - state.used };\n    },\n  };\n}\n",
+        "head": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used < config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [],
+    "reply": {
+      "status": "valid",
+      "review": {
+        "verdict": "approve",
+        "findings": []
+      }
+    },
+    "outputTokens": 120,
+    "expectedOutcome": "clean",
+    "raw_response": "{\"verdict\":\"approve\",\"findings\":[]}"
+  },
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-hit",
+    "taskId": "T01",
+    "label": "HIT",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "defect",
+    "spec": "# Limit requests per (tenant, region) and add a grace allowance\n\nToday `createLimiter` keeps one counter per tenant and opens a window at a tenant's first request. Please change\n`src/burst-limiter.ts` as follows.\n\n1. `check(tenant, region, now)` takes the region as a new second argument, and counters are kept per\n   (tenant, region) pair. Tenant and region are arbitrary strings and may contain any character, including `:`\n   and `\\`. Two different pairs must never share a counter.\n2. Windows are aligned to the clock: the window containing `now` starts at `Math.floor(now / windowMs) * windowMs`\n   and covers `windowMs` milliseconds. A request at exactly `start + windowMs` belongs to the next window.\n3. Each pair may make `limit` requests per window. Each of these returns\n   `{ allowed: true, remaining: limit - usedSoFar, grace: false }`, where `usedSoFar` includes this request.\n4. Grace: once a pair has used its full limit in the current window, it may make up to `grace` more requests in\n   that window, but only if it used at most half of its limit in the immediately preceding window\n   (`previousUsed * 2 <= limit`). A pair with no requests in the immediately preceding window (a new pair, or a gap\n   of one or more whole windows) counts as having used 0 there. A grace request returns\n   `{ allowed: true, remaining: 0, grace: true }`.\n5. Every other request is refused with `{ allowed: false, remaining: 0, grace: false }`.\n6. `createLimiter({ limit, windowMs, grace })` validates its config: `limit` and `windowMs` must be integers >= 1\n   and `grace` an integer >= 0. Anything else throws a `RangeError`.\n",
+    "files": [
+      {
+        "path": "src/burst-limiter.ts",
+        "base": "// Fixed-window request limiter, one counter per tenant.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, now: number): Decision {\n      let state = windows.get(tenant);\n      if (state === undefined || now - state.start >= config.windowMs) {\n        state = { start: now, used: 0 };\n        windows.set(tenant, state);\n      }\n      if (state.used >= config.limit) return { allowed: false, remaining: 0 };\n      state.used += 1;\n      return { allowed: true, remaining: config.limit - state.used };\n    },\n  };\n}\n",
+        "head": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used <= config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [
+      {
+        "path": "src/burst-limiter.ts",
+        "startLine": 52,
+        "endLine": 52
+      }
+    ],
+    "reply": {
+      "status": "valid",
+      "review": {
+        "verdict": "request_changes",
+        "findings": [
+          {
+            "path": "src/burst-limiter.ts",
+            "startLine": 52,
+            "endLine": 52,
+            "severity": "high",
+            "claim": "The limit comparison permits one extra request.",
+            "confidence": 0.8,
+            "disposition": "requires_change"
+          }
+        ]
+      }
+    },
+    "outputTokens": 120,
+    "expectedOutcome": "HIT",
+    "raw_response": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/burst-limiter.ts\",\"startLine\":52,\"endLine\":52,\"severity\":\"high\",\"claim\":\"The limit comparison permits one extra request.\",\"confidence\":0.8,\"disposition\":\"requires_change\"}]}"
+  },
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-defer",
+    "taskId": "T01",
+    "label": "DEFER",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "defect",
+    "spec": "# Limit requests per (tenant, region) and add a grace allowance\n\nToday `createLimiter` keeps one counter per tenant and opens a window at a tenant's first request. Please change\n`src/burst-limiter.ts` as follows.\n\n1. `check(tenant, region, now)` takes the region as a new second argument, and counters are kept per\n   (tenant, region) pair. Tenant and region are arbitrary strings and may contain any character, including `:`\n   and `\\`. Two different pairs must never share a counter.\n2. Windows are aligned to the clock: the window containing `now` starts at `Math.floor(now / windowMs) * windowMs`\n   and covers `windowMs` milliseconds. A request at exactly `start + windowMs` belongs to the next window.\n3. Each pair may make `limit` requests per window. Each of these returns\n   `{ allowed: true, remaining: limit - usedSoFar, grace: false }`, where `usedSoFar` includes this request.\n4. Grace: once a pair has used its full limit in the current window, it may make up to `grace` more requests in\n   that window, but only if it used at most half of its limit in the immediately preceding window\n   (`previousUsed * 2 <= limit`). A pair with no requests in the immediately preceding window (a new pair, or a gap\n   of one or more whole windows) counts as having used 0 there. A grace request returns\n   `{ allowed: true, remaining: 0, grace: true }`.\n5. Every other request is refused with `{ allowed: false, remaining: 0, grace: false }`.\n6. `createLimiter({ limit, windowMs, grace })` validates its config: `limit` and `windowMs` must be integers >= 1\n   and `grace` an integer >= 0. Anything else throws a `RangeError`.\n",
+    "files": [
+      {
+        "path": "src/burst-limiter.ts",
+        "base": "// Fixed-window request limiter, one counter per tenant.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, now: number): Decision {\n      let state = windows.get(tenant);\n      if (state === undefined || now - state.start >= config.windowMs) {\n        state = { start: now, used: 0 };\n        windows.set(tenant, state);\n      }\n      if (state.used >= config.limit) return { allowed: false, remaining: 0 };\n      state.used += 1;\n      return { allowed: true, remaining: config.limit - state.used };\n    },\n  };\n}\n",
+        "head": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used <= config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [
+      {
+        "path": "src/burst-limiter.ts",
+        "startLine": 52,
+        "endLine": 52
+      }
+    ],
+    "reply": {
+      "status": "valid",
+      "review": {
+        "verdict": "request_changes",
+        "findings": [
+          {
+            "path": "src/burst-limiter.ts",
+            "startLine": 52,
+            "endLine": 52,
+            "severity": "high",
+            "claim": "The limit comparison permits one extra request.",
+            "confidence": 0.8,
+            "disposition": "uncertain"
+          }
+        ]
+      }
+    },
+    "outputTokens": 120,
+    "expectedOutcome": "DEFER",
+    "raw_response": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/burst-limiter.ts\",\"startLine\":52,\"endLine\":52,\"severity\":\"high\",\"claim\":\"The limit comparison permits one extra request.\",\"confidence\":0.8,\"disposition\":\"uncertain\"}]}"
+  },
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-wrong-place",
+    "taskId": "T01",
+    "label": "WRONG-PLACE",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "defect",
+    "spec": "# Limit requests per (tenant, region) and add a grace allowance\n\nToday `createLimiter` keeps one counter per tenant and opens a window at a tenant's first request. Please change\n`src/burst-limiter.ts` as follows.\n\n1. `check(tenant, region, now)` takes the region as a new second argument, and counters are kept per\n   (tenant, region) pair. Tenant and region are arbitrary strings and may contain any character, including `:`\n   and `\\`. Two different pairs must never share a counter.\n2. Windows are aligned to the clock: the window containing `now` starts at `Math.floor(now / windowMs) * windowMs`\n   and covers `windowMs` milliseconds. A request at exactly `start + windowMs` belongs to the next window.\n3. Each pair may make `limit` requests per window. Each of these returns\n   `{ allowed: true, remaining: limit - usedSoFar, grace: false }`, where `usedSoFar` includes this request.\n4. Grace: once a pair has used its full limit in the current window, it may make up to `grace` more requests in\n   that window, but only if it used at most half of its limit in the immediately preceding window\n   (`previousUsed * 2 <= limit`). A pair with no requests in the immediately preceding window (a new pair, or a gap\n   of one or more whole windows) counts as having used 0 there. A grace request returns\n   `{ allowed: true, remaining: 0, grace: true }`.\n5. Every other request is refused with `{ allowed: false, remaining: 0, grace: false }`.\n6. `createLimiter({ limit, windowMs, grace })` validates its config: `limit` and `windowMs` must be integers >= 1\n   and `grace` an integer >= 0. Anything else throws a `RangeError`.\n",
+    "files": [
+      {
+        "path": "src/burst-limiter.ts",
+        "base": "// Fixed-window request limiter, one counter per tenant.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, now: number): Decision {\n      let state = windows.get(tenant);\n      if (state === undefined || now - state.start >= config.windowMs) {\n        state = { start: now, used: 0 };\n        windows.set(tenant, state);\n      }\n      if (state.used >= config.limit) return { allowed: false, remaining: 0 };\n      state.used += 1;\n      return { allowed: true, remaining: config.limit - state.used };\n    },\n  };\n}\n",
+        "head": "// Fixed-window request limiter, one counter per (tenant, region) pair, with a grace allowance.\nexport interface LimiterConfig {\n  readonly limit: number;\n  readonly windowMs: number;\n  readonly grace: number;\n}\n\nexport interface Decision {\n  readonly allowed: boolean;\n  readonly remaining: number;\n  readonly grace: boolean;\n}\n\ninterface WindowState {\n  start: number;\n  used: number;\n  graceUsed: number;\n  previousUsed: number;\n}\n\nfunction requireCount(name: string, value: number, min: number): void {\n  if (!Number.isInteger(value) || value < min) {\n    throw new RangeError(`${name} must be an integer >= ${min}`);\n  }\n}\n\n/** Escapes the separator, so (\"a:b\", \"c\") and (\"a\", \"b:c\") get different keys. */\nfunction pairKey(tenant: string, region: string): string {\n  const escape = (part: string) => part.replaceAll(\"\\\\\", \"\\\\\\\\\").replaceAll(\":\", \"\\\\:\");\n  return `${escape(tenant)}:${escape(region)}`;\n}\n\nfunction windowStart(now: number, windowMs: number): number {\n  return Math.floor(now / windowMs) * windowMs;\n}\n\nexport function createLimiter(config: LimiterConfig) {\n  requireCount(\"limit\", config.limit, 1);\n  requireCount(\"windowMs\", config.windowMs, 1);\n  requireCount(\"grace\", config.grace, 0);\n  const windows = new Map<string, WindowState>();\n  return {\n    check(tenant: string, region: string, now: number): Decision {\n      const key = pairKey(tenant, region);\n      const start = windowStart(now, config.windowMs);\n      let state = windows.get(key);\n      if (state === undefined || state.start !== start) {\n        const previousUsed = state !== undefined && state.start + config.windowMs === start ? state.used : 0;\n        state = { start, used: 0, graceUsed: 0, previousUsed };\n        windows.set(key, state);\n      }\n      if (state.used <= config.limit) {\n        state.used += 1;\n        return { allowed: true, remaining: config.limit - state.used, grace: false };\n      }\n      const graceOpen = state.previousUsed * 2 <= config.limit;\n      if (graceOpen && state.graceUsed < config.grace) {\n        state.graceUsed += 1;\n        return { allowed: true, remaining: 0, grace: true };\n      }\n      return { allowed: false, remaining: 0, grace: false };\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [
+      {
+        "path": "src/burst-limiter.ts",
+        "startLine": 52,
+        "endLine": 52
+      }
+    ],
+    "reply": {
+      "status": "valid",
+      "review": {
+        "verdict": "request_changes",
+        "findings": [
+          {
+            "path": "src/burst-limiter.ts",
+            "startLine": 2,
+            "endLine": 2,
+            "severity": "high",
+            "claim": "Illustrative finding at an unrelated declaration; this is a synthetic recording.",
+            "confidence": 0.8,
+            "disposition": "requires_change"
+          }
+        ]
+      }
+    },
+    "outputTokens": 120,
+    "expectedOutcome": "WRONG-PLACE",
+    "raw_response": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/burst-limiter.ts\",\"startLine\":2,\"endLine\":2,\"severity\":\"high\",\"claim\":\"Illustrative finding at an unrelated declaration; this is a synthetic recording.\",\"confidence\":0.8,\"disposition\":\"requires_change\"}]}"
+  },
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-false-rejection",
+    "taskId": "T02",
+    "label": "false rejection",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "clean",
+    "spec": "# Cache resolved preferences, and accept users who never saved any\n\n`resolvePreferences` in `src/preferences.ts` loads workspace defaults and overlays the user's overrides. Two changes:\n\n1. Users who never saved anything have no overrides: for them `fetchOverrides` rejects with an error whose `code`\n   property is `\"not_found\"`. `resolvePreferences` must treat that as an empty set of overrides and return the\n   workspace defaults. Any other rejection from either fetch function must reach the caller unchanged (the same\n   error object).\n2. Add `createPreferenceCache(source, { ttlMs, now })`, returning `{ get(workspace, user): Promise<Preferences> }`.\n   `now()` returns the current time in milliseconds.\n   - Results are cached per (workspace, user) pair. A load started at time `t` is served to every `get` for that\n     pair while `now() < t + ttlMs`. The first `get` at or after `t + ttlMs` starts a new load.\n   - Concurrent `get` calls for the same pair while its load is in progress share that load: the fetch functions\n     are called once.\n   - A load that rejects is never served again. Its rejection goes to the callers that shared it, and the next\n     `get` for that pair starts a new load.\n",
+    "files": [
+      {
+        "path": "src/preferences.ts",
+        "base": "// Resolves a user's preferences: workspace defaults overlaid with the user's own overrides.\nexport type Preferences = Readonly<Record<string, string>>;\n\nexport interface PreferenceSource {\n  fetchDefaults(workspace: string): Promise<Preferences>;\n  fetchOverrides(workspace: string, user: string): Promise<Preferences>;\n}\n\nexport async function resolvePreferences(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  const defaults = await source.fetchDefaults(workspace);\n  const overrides = await source.fetchOverrides(workspace, user);\n  return { ...defaults, ...overrides };\n}\n",
+        "head": "// Resolves a user's preferences: workspace defaults overlaid with the user's own overrides.\nexport type Preferences = Readonly<Record<string, string>>;\n\nexport interface PreferenceSource {\n  fetchDefaults(workspace: string): Promise<Preferences>;\n  fetchOverrides(workspace: string, user: string): Promise<Preferences>;\n}\n\nexport interface CacheOptions {\n  readonly ttlMs: number;\n  readonly now: () => number;\n}\n\nfunction isNotFound(error: unknown): boolean {\n  return typeof error === \"object\" && error !== null && (error as { code?: unknown }).code === \"not_found\";\n}\n\nasync function loadOverrides(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  try {\n    return await source.fetchOverrides(workspace, user);\n  } catch (error) {\n    if (isNotFound(error)) return {};\n    throw error;\n  }\n}\n\nexport async function resolvePreferences(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  const defaults = await source.fetchDefaults(workspace);\n  const overrides = await loadOverrides(source, workspace, user);\n  return { ...defaults, ...overrides };\n}\n\ninterface Entry {\n  readonly startedAt: number;\n  readonly value: Promise<Preferences>;\n}\n\nexport function createPreferenceCache(source: PreferenceSource, options: CacheOptions) {\n  const entries = new Map<string, Entry>();\n  return {\n    get(workspace: string, user: string): Promise<Preferences> {\n      const key = JSON.stringify([workspace, user]);\n      const now = options.now();\n      const current = entries.get(key);\n      if (current !== undefined && now < current.startedAt + options.ttlMs) return current.value;\n      const entry: Entry = { startedAt: now, value: resolvePreferences(source, workspace, user) };\n      entries.set(key, entry);\n      entry.value.catch(() => {\n        if (entries.get(key) === entry) entries.delete(key);\n      });\n      return entry.value;\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [],
+    "reply": {
+      "status": "valid",
+      "review": {
+        "verdict": "request_changes",
+        "findings": [
+          {
+            "path": "src/preferences.ts",
+            "startLine": 2,
+            "endLine": 2,
+            "severity": "high",
+            "claim": "Illustrative finding at an unrelated declaration; this is a synthetic recording.",
+            "confidence": 0.8,
+            "disposition": "requires_change"
+          }
+        ]
+      }
+    },
+    "outputTokens": 120,
+    "expectedOutcome": "false rejection",
+    "raw_response": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/preferences.ts\",\"startLine\":2,\"endLine\":2,\"severity\":\"high\",\"claim\":\"Illustrative finding at an unrelated declaration; this is a synthetic recording.\",\"confidence\":0.8,\"disposition\":\"requires_change\"}]}"
+  },
+  {
+    "fixture_schema": "mock-review-case/v1",
+    "id": "mock-invalid",
+    "taskId": "T02",
+    "label": "INVALID",
+    "mock": true,
+    "synthetic": true,
+    "variantKind": "defect",
+    "spec": "# Cache resolved preferences, and accept users who never saved any\n\n`resolvePreferences` in `src/preferences.ts` loads workspace defaults and overlays the user's overrides. Two changes:\n\n1. Users who never saved anything have no overrides: for them `fetchOverrides` rejects with an error whose `code`\n   property is `\"not_found\"`. `resolvePreferences` must treat that as an empty set of overrides and return the\n   workspace defaults. Any other rejection from either fetch function must reach the caller unchanged (the same\n   error object).\n2. Add `createPreferenceCache(source, { ttlMs, now })`, returning `{ get(workspace, user): Promise<Preferences> }`.\n   `now()` returns the current time in milliseconds.\n   - Results are cached per (workspace, user) pair. A load started at time `t` is served to every `get` for that\n     pair while `now() < t + ttlMs`. The first `get` at or after `t + ttlMs` starts a new load.\n   - Concurrent `get` calls for the same pair while its load is in progress share that load: the fetch functions\n     are called once.\n   - A load that rejects is never served again. Its rejection goes to the callers that shared it, and the next\n     `get` for that pair starts a new load.\n",
+    "files": [
+      {
+        "path": "src/preferences.ts",
+        "base": "// Resolves a user's preferences: workspace defaults overlaid with the user's own overrides.\nexport type Preferences = Readonly<Record<string, string>>;\n\nexport interface PreferenceSource {\n  fetchDefaults(workspace: string): Promise<Preferences>;\n  fetchOverrides(workspace: string, user: string): Promise<Preferences>;\n}\n\nexport async function resolvePreferences(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  const defaults = await source.fetchDefaults(workspace);\n  const overrides = await source.fetchOverrides(workspace, user);\n  return { ...defaults, ...overrides };\n}\n",
+        "head": "// Resolves a user's preferences: workspace defaults overlaid with the user's own overrides.\nexport type Preferences = Readonly<Record<string, string>>;\n\nexport interface PreferenceSource {\n  fetchDefaults(workspace: string): Promise<Preferences>;\n  fetchOverrides(workspace: string, user: string): Promise<Preferences>;\n}\n\nexport interface CacheOptions {\n  readonly ttlMs: number;\n  readonly now: () => number;\n}\n\nfunction isNotFound(error: unknown): boolean {\n  return typeof error === \"object\" && error !== null && (error as { code?: unknown }).code === \"not_found\";\n}\n\nasync function loadOverrides(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  try {\n    return await source.fetchOverrides(workspace, user);\n  } catch (error) {\n    if (isNotFound(error)) return {};\n    throw error;\n  }\n}\n\nexport async function resolvePreferences(source: PreferenceSource, workspace: string, user: string): Promise<Preferences> {\n  const defaults = await source.fetchDefaults(workspace);\n  const overrides = await loadOverrides(source, workspace, user);\n  return { ...defaults, ...overrides };\n}\n\ninterface Entry {\n  readonly startedAt: number;\n  readonly value: Promise<Preferences>;\n}\n\nexport function createPreferenceCache(source: PreferenceSource, options: CacheOptions) {\n  const entries = new Map<string, Entry>();\n  return {\n    get(workspace: string, user: string): Promise<Preferences> {\n      const key = JSON.stringify([workspace]);\n      const now = options.now();\n      const current = entries.get(key);\n      if (current !== undefined && now < current.startedAt + options.ttlMs) return current.value;\n      const entry: Entry = { startedAt: now, value: resolvePreferences(source, workspace, user) };\n      entries.set(key, entry);\n      entry.value.catch(() => {\n        if (entries.get(key) === entry) entries.delete(key);\n      });\n      return entry.value;\n    },\n  };\n}\n"
+      }
+    ],
+    "regions": [
+      {
+        "path": "src/preferences.ts",
+        "startLine": 42,
+        "endLine": 42
+      }
+    ],
+    "reply": {
+      "status": "schema_invalid",
+      "review": null
+    },
+    "outputTokens": null,
+    "expectedOutcome": "INVALID",
+    "raw_response": "{\"verdict\":"
+  }
+]

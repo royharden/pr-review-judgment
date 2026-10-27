@@ -41,7 +41,7 @@ describe("mcnemarFromPairs", () => {
       { unit: "T05", first: false, second: false },
     ]);
     expect([r.n, r.b, r.c]).toEqual([5, 1, 2]);
-    expect(r.p).toBe(exactMcNemar(1, 2));
+    expect(r.p).toEqual({ kind: "value", value: exactMcNemar(1, 2) });
   });
 
   it("refuses two observations of one unit (never pooled over repeats)", () => {
@@ -52,4 +52,9 @@ describe("mcnemarFromPairs", () => {
       ]),
     ).toThrow(/twice/);
   });
+});
+
+it("empty paired sample carries a reason in JSON; concordant observed pairs still yield p=1", () => {
+  expect(JSON.parse(JSON.stringify(mcnemarFromPairs([]))).p).toEqual({ kind: "undefined", reason: "no paired task" });
+  expect(mcnemarFromPairs([{ unit: "T01", first: true, second: true }]).p).toEqual({ kind: "value", value: 1 });
 });

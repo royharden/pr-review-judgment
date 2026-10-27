@@ -13,7 +13,7 @@
 // - The semantic-judge column prints NOT RUN (PLAN K17). Both Δ labels are printed: Δ_self (same − different) and
 //   −Δ_self (different − same) (PLAN K4).
 // - With no measured aggregate, the measured section prints NOT MEASURED.
-import { formatValue, ratio, undefinedValue, value, type Value } from "../stats/value.ts";
+import { formatValue, ratio, type Value } from "../stats/value.ts";
 import {
   CROSSED_CELLS,
   DELTA_SELF_LABEL,
@@ -151,7 +151,7 @@ function costPerHit(r: Renderer, arm: ArmSummaryA, costs: readonly ArmCost[] | u
 
 /** One McNemar number (b, c or p): n = paired tasks, source = the paired slots. p is undefined with no paired task. */
 function renderMcNemar(r: Renderer, m: AuthorMcNemar, what: "b" | "c" | "p"): string {
-  const text = what === "p" ? formatValue(m.result.n === 0 ? undefinedValue("no paired task") : value(m.result.p)) : String(m.result[what]);
+  const text = what === "p" ? formatValue(m.result.p) : String(m.result[what]);
   return `${r.stamp}${text} · n=${m.result.n} tasks · src=${sourceId(r, m.source)}`;
 }
 
@@ -184,8 +184,8 @@ function stratumATable(r: Renderer, agg: AggregateResult, costs: readonly ArmCos
     ["localization-match fraction (not factual precision)", ...arms.map((a) => renderCell(r, a.localizationMatchFraction))],
     ...cleanRows(r, "clean", arms, (a) => a.clean),
     ...cleanRows(r, "near-miss", arms, (a) => a.nearMiss),
-    ["burden: requires_change findings per change", ...arms.map((a) => renderCell(r, a.burden.requiresChangeFindingsPerChange))],
-    ["burden: output tokens per change", ...arms.map((a) => renderCell(r, a.burden.outputTokensPerChange))],
+    ["burden: requires_change findings per valid reply", ...arms.map((a) => renderCell(r, a.burden.requiresChangeFindingsPerValidReply))],
+    ["burden: output tokens per reply reporting usage", ...arms.map((a) => renderCell(r, a.burden.outputTokensPerReplyWithUsage))],
     ["flip rate, seeded", ...arms.map((a) => renderCell(r, a.flipRate.seeded))],
     ["flip rate, clean", ...arms.map((a) => renderCell(r, a.flipRate.clean))],
     ["cost per actionable defect found (all-attempt USD / HITs)", ...arms.map((a) => costPerHit(r, a, costs))],
@@ -258,7 +258,7 @@ function sourcesTable(r: Renderer): string {
     ["src", "run ids", "slots", "slot-set sha256", "mock"],
     ids.map((id) => {
       const s = r.sources.get(id)!;
-      return [id, s.runIds.join(", ") || "none", String(s.slotCount), s.slotSetSha256, s.mock ? MOCK_STAMP : "no"];
+      return [id, s.runIds.join(", ") || "none", String(s.slotCount), s.slotSetSha256, s.mock ? MOCK_STAMP : "no"].map((cell) => `${r.stamp}${cell}`);
     }),
   );
 }

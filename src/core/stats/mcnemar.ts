@@ -5,6 +5,8 @@
 // p = min(1, 2 * P[X <= min(b, c)]), X ~ Binomial(b + c, 1/2), where b and c are the discordant counts.
 // Known answers (tests): (1, 5) = 14/64; (3, 10) = 756/8192 ~ 0.0923; (0, 0) = 1.
 
+import { undefinedValue, value, type Value } from "./value.ts";
+
 export const MCNEMAR_LABEL = "exact two-sided McNemar (exploratory; no p-value gate)" as const;
 
 export function exactMcNemar(b: number, c: number): number {
@@ -38,7 +40,7 @@ export interface McNemarResult {
   readonly b: number;
   /** first false, second true */
   readonly c: number;
-  readonly p: number;
+  readonly p: Value;
 }
 
 /** Discordant counts from one paired observation per unit; a repeated unit is refused (never pooled). */
@@ -52,5 +54,5 @@ export function mcnemarFromPairs(pairs: readonly PairedBinary[]): McNemarResult 
     if (pair.first && !pair.second) b++;
     else if (!pair.first && pair.second) c++;
   }
-  return { label: MCNEMAR_LABEL, n: pairs.length, b, c, p: exactMcNemar(b, c) };
+  return { label: MCNEMAR_LABEL, n: pairs.length, b, c, p: pairs.length === 0 ? undefinedValue("no paired task") : value(exactMcNemar(b, c)) };
 }
