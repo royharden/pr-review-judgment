@@ -1,0 +1,25 @@
+{
+  // Viewer (browser) project: src/ only, including src/core (pure, shared with the CLI). DOM libs, no Node types,
+  // so src/core cannot reach a Node API here; tsconfig.cli.json checks src/core again without DOM.
+  // Relative imports carry explicit .ts extensions (docs/CONVENTIONS.md). Not yet run (DEFERRED-VALIDATION DV-02).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["src"]
+}

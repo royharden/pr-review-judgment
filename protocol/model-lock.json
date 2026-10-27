@@ -1,0 +1,30 @@
+{
+  "schema": "model-lock/v1",
+  "status": "unlocked",
+  "requires": ["R2"],
+  "note": "Every field is null until Roy answers R2 in writing. The runtime refuses any null field (PLAN §3.1, M4). The planned pair in PLAN §3.1 is a recommendation, not a lock, and is deliberately not written here.",
+  "locked_at": null,
+  "roy_grant": null,
+  "reviewers": {
+    "A": {
+      "provider": null,
+      "api": null,
+      "model_id": null,
+      "api_version": null,
+      "effort": null,
+      "tools": null,
+      "output_cap_tokens": null,
+      "system_prompt_sha256": null
+    },
+    "B": {
+      "provider": null,
+      "api": null,
+      "model_id": null,
+      "api_version": null,
+      "effort": null,
+      "tools": null,
+      "output_cap_tokens": null,
+      "system_prompt_sha256": null
+    }
+  }
+}

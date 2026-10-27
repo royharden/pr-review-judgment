@@ -1,0 +1,27 @@
+{
+  // CLI, tests and config files (Node >= 22, ESM). Also re-checks src/core without DOM libs, so core code that
+  // type-checks under both projects uses neither DOM-only nor (by lint rule) Node-only APIs.
+  // Relative imports carry explicit .ts extensions; tsx, vitest and Node type stripping resolve them as written.
+  // Not yet run (DEFERRED-VALIDATION DV-02).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["cli", "tests", "src/core", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "corpus", "fixtures", "results", "runs"]
+}

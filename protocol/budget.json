@@ -1,0 +1,43 @@
+{
+  "schema": "budget/v1",
+  "requires": ["R1"],
+  "note": "Approved spend is $0 and the budget is disabled until Roy answers R1 in writing. recommended_usd values are S41-INT recommendations shown for Roy's decision; the ledger reads only approved_usd and enabled (PLAN K8).",
+  "enabled": false,
+  "currency": "USD",
+  "approved_by_roy": null,
+  "approved_usd": 0,
+  "recommended_usd": 150,
+  "sub_caps": {
+    "stratum_a": {
+      "approved_usd": 0,
+      "recommended_usd": 60
+    },
+    "stratum_b": {
+      "approved_usd": 0,
+      "recommended_usd": 90,
+      "note": "B is released by a second explicit Roy grant after the A dev pass is inside the estimability band"
+    },
+    "preparation": {
+      "approved_usd": 0,
+      "recommended_usd": 0,
+      "note": "preparation API calls are forbidden unless Roy sets a nonzero value; any allowed preparation spend counts inside the aggregate"
+    }
+  },
+  "reservation_tokens": {
+    "review": { "input": 12000, "output": 8000 },
+    "author": { "input": 8000, "output": 16000 }
+  },
+  "ledger_stages": ["preparation", "authoring", "review", "retry", "failed"],
+  "unpriced_category": "subscription_session_cost_unallocated",
+  "planning_estimate_not_approval": {
+    "planning_rates_usd_per_mtok": { "input": 2, "output": 10 },
+    "per_review_reservation_usd": 0.104,
+    "per_author_reservation_usd": 0.176,
+    "worst_case_reviews_usd": 169.728,
+    "worst_case_reviews_basis": "816 slots x 2 attempts (one transport retry) x 0.104",
+    "worst_case_authors_usd": 8.448,
+    "worst_case_authors_basis": "48 author calls x 0.176",
+    "expected_usd_approx": 27,
+    "consequence": "worst case exceeds the recommended caps; the ledger stops the run as partial and never overspends"
+  }
+}

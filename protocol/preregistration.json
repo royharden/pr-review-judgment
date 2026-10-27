@@ -1,0 +1,106 @@
+{
+  "schema": "preregistration/v1",
+  "status": "draft_unlocked",
+  "requires": ["R1", "R2"],
+  "note": "Fixed protocol constants (PLAN §3, §6). draft_unlocked: nothing is locked or registered until Roy answers R1 and R2 and the protocol lock (M4) hashes this file. No dev review has run, so k and every threshold below were fixed before any outcome was seen.",
+  "claim": {
+    "estimand": "delta_self",
+    "definition": "delta_self = mean over tasks t of D_t; D_t = 0.5 * ((H_AA - H_BA) + (H_BB - H_AB)); H_RX = reviewer R's mean HIT on author X's seeded changes in task t",
+    "sign": "positive delta_self = same-model review catches more",
+    "also_printed": "-delta_self (different - same)",
+    "stratum_a": "descriptive only; never supports a self-review inference"
+  },
+  "hit": "valid request_changes AND >= 1 localized finding with disposition requires_change",
+  "localization": {
+    "k_primary": 2,
+    "k_columns": [0, 5],
+    "span_cap_lines": 20,
+    "path_match": "exact_normalized",
+    "region_policy": "region/v1"
+  },
+  "outcome_precedence": {
+    "defect": ["HIT", "DEFER", "WRONG-PLACE", "MISS"],
+    "non_valid": "UNAVAILABLE"
+  },
+  "repeats": {
+    "heldout": 3,
+    "dev": 1
+  },
+  "seeds": {
+    "split": 4101,
+    "bootstrap_stratum_a": 4102,
+    "bootstrap_stratum_b": 4103
+  },
+  "bootstrap": {
+    "draws": 10000,
+    "ci_level": 0.95,
+    "cluster": "task",
+    "stratum_b_paired": true
+  },
+  "groups": {
+    "G-BND": "boundary, off-by-one, null/optional",
+    "G-ACC": "authorization, validation, escaping",
+    "G-ASY": "missing await, ordering, state, cache key, lifecycle",
+    "G-ERR": "swallowed or mis-mapped error, inverted logic, wrong operator"
+  },
+  "quotas": {
+    "heldout": {
+      "tasks": 10,
+      "defects_per_task": 4,
+      "defects_per_group": 10,
+      "defects_total": 40,
+      "origin_min_operator": 14,
+      "origin_min_hand": 14
+    },
+    "dev": {
+      "tasks": 6,
+      "defects_per_task": 4,
+      "defects_per_group": 6,
+      "defects_total": 24
+    },
+    "variants_per_task": ["clean", "near_miss", "defect", "defect", "defect", "defect"],
+    "stratum_b": {
+      "dev_tasks": 2,
+      "heldout_tasks": 10,
+      "clean_per_substrate": 1,
+      "operator_defects_per_substrate": 2,
+      "author_attempts_max": 2
+    }
+  },
+  "task_limits": {
+    "max_files": 2,
+    "max_executable_lines": 150
+  },
+  "estimability": {
+    "dev_hit_upper": 0.9,
+    "dev_hit_lower": 0.1,
+    "max_non_valid_share": 0.15,
+    "rule": "pause held-out launch if dev HIT >= dev_hit_upper or dev HIT <= dev_hit_lower or non-valid dev slot share > max_non_valid_share (PLAN K9)"
+  },
+  "tokens": {
+    "input_ceiling": 12000,
+    "output_cap": 8000,
+    "output_cap_includes_reasoning": true
+  },
+  "review_contract": {
+    "verdicts": ["approve", "request_changes"],
+    "max_findings": 10,
+    "claim_max_chars": 600,
+    "severities": ["high", "medium", "low"],
+    "dispositions": ["requires_change", "acceptable", "uncertain"],
+    "confidence_range": [0, 1]
+  },
+  "response_statuses": ["valid", "schema_invalid", "refusal", "truncated", "timeout", "provider_error", "identity_mismatch", "unknown"],
+  "retries": {
+    "repair_retry": false,
+    "transport_retry_on_confirmed_pre_send_failure": 1
+  },
+  "slots": {
+    "a_dev": 72,
+    "a_heldout": 360,
+    "b_dev": 24,
+    "b_heldout": 360,
+    "total": 816,
+    "author_calls_max": 48
+  }
+}

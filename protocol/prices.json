@@ -1,0 +1,23 @@
+{
+  "schema": "prices/v1",
+  "requires": ["R1", "R2"],
+  "note": "All prices are null until refreshed from the providers on a dated retrieval and approved by Roy (R1 spend, R2 models). The runtime refuses null or undated prices. Planning rates used for the recommended cap live in budget.json and are never read as prices.",
+  "currency": "USD",
+  "retrieved_at": null,
+  "source_urls": null,
+  "approved_by_roy": null,
+  "models": {
+    "A": {
+      "model_id": null,
+      "input_usd_per_mtok": null,
+      "output_usd_per_mtok": null,
+      "reasoning_billed_as_output": null
+    },
+    "B": {
+      "model_id": null,
+      "input_usd_per_mtok": null,
+      "output_usd_per_mtok": null,
+      "reasoning_billed_as_output": null
+    }
+  }
+}

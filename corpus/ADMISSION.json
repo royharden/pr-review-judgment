@@ -1,0 +1,25 @@
+{
+  "schema": "admission/v1",
+  "status": "PENDING_ROY_APPOINTMENT",
+  "status_note": "PENDING - needs Roy to appoint the independent corpus steward and validator (R3); witness execution also needs R7. No held-out set exists. The builder lineage can never sign this record.",
+  "requires": ["R3", "R7"],
+  "gates": {
+    "G1": { "evidence": null, "sha256": null },
+    "G2": { "evidence": null, "sha256": null },
+    "G3": { "evidence": null, "sha256": null },
+    "G4": { "evidence": null, "sha256": null },
+    "G5": { "evidence": null, "sha256": null },
+    "G6": { "evidence": null, "sha256": null },
+    "G7": { "evidence": null, "sha256": null },
+    "G8": { "evidence": null, "sha256": null },
+    "G9": { "evidence": null, "sha256": null }
+  },
+  "signers": {
+    "steward": null,
+    "validator": null
+  },
+  "roy_grant": null,
+  "invoked_by": null,
+  "developer_overlap_disclosed": false,
+  "decided_at": null
+}
