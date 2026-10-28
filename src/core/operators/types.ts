@@ -1,7 +1,7 @@
 // Mutation operator types (PLAN §4 `src/core/operators`, M2). Pure: the TypeScript compiler API is a value the host
 // injects (`TsApi`); this module imports `typescript` for types only, so src/core never loads the compiler itself and
 // the viewer bundle does not pull it in. The CLI and tests pass `import ts from "typescript"`.
-import type * as TS from "typescript";
+import type TS from "typescript";
 
 /** The `typescript` module object (`import ts from "typescript"`), injected by the host. */
 export type TsApi = typeof TS;

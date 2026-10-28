@@ -14,7 +14,7 @@ describe("dev manifest source contract (execution deferred)", () => {
     const manifest = buildDevManifest([{ task, variants: [defect, correct] }]);
     const reversed = buildDevManifest([{ task, variants: [correct, defect] }]);
     expect(manifest).toEqual(reversed);
-    const contents = manifest.records.map(({ manifestHash: _hash, ...record }) => record);
+    const contents = manifest.records.map(({ manifestHash: _hash, ...record }) => { void _hash; return record; });
     expect(hashCanonical(contents)).toBe(manifest.manifest_sha256);
     expect(manifest.runtime_validated).toBe(false);
     expect(manifest.records.every((r) => r.manifestHash === manifest.manifest_sha256)).toBe(true);

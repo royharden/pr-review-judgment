@@ -3,7 +3,7 @@
   "requires": [
     "R1"
   ],
-  "note": "Roy approved USD 40 aggregate ceiling only. Disabled: live access and stage sub-caps remain unapproved. Stage recommended_usd is a proposal, never runtime authority. No credentials or live calls authorized.",
+  "note": "Round 2 (2026-10-27): Roy authorizes USD 40 total testing, a hard ceiling, only through keys/accounts Roy supplies; none supplied, USD 0 spent. Execution stays disabled. Proposed allocation A16/B24/preparation0 is planning only; approved stage caps remain zero pending activation. No account creation, credential-file reads or live calls authorized in this phase. See docs/ACTIVATION-PLACEHOLDERS.md.",
   "enabled": false,
   "currency": "USD",
   "approved_by_roy": "ROY-SPEND-CAP-20261027.md (Roy t298u, 2026-10-27 15:25 ET)",

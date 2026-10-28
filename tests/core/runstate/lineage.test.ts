@@ -34,7 +34,7 @@ describe("recording lineage", () => {
   it("what_bug_this_catches: stripping a MOCK marker or adding unknown envelope fields refuses closed input", async () => {
     const slot = planned(), provider = createMockProvider("openai", () => loadFixture("openai_text"));
     const envelope = await provider.complete(requestFor(slot));
-    const { mock: _mock, ...stripped } = envelope;
+    const { mock: _mock, ...stripped } = envelope; void _mock;
     expect(() => EnvelopeSchema.parse(stripped)).toThrow();
     expect(() => EnvelopeSchema.parse({ ...envelope, trusted_by_caller: true })).toThrow();
     expect(scoreRecordings("r", [{ slot, envelope }]).cleanSlots[0]!.mock).toBe(true);

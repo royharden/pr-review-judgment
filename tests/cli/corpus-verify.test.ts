@@ -5,7 +5,7 @@
 // project vault); it is not held-out corpus data, and `steward_heldout` is only the schema-required label for split
 // heldout. All callsigns other than the builder ones are fictional test values, not appointments.
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +32,7 @@ const NEAR = `${SIGNATURE}\n  return b + a;\n}\n`;
 const BAD = `${SIGNATURE}\n  return a - b;\n}\n`;
 
 let root: string;
+const repo = () => path.join(root, "repo");
 const out: string[] = [];
 const io = (docker: DockerPort | null) => ({
   cwd: root,
@@ -91,25 +92,27 @@ const verifyArgs = (overrides: Record<string, string | null> = {}) =>
     split: "heldout",
     corpus: ".heldout/corpus",
     image: IMAGE,
-    "probe-receipt": "runs/probe-receipt.json",
+    "probe-receipt": "repo/runs/probe-receipt.json",
     seed: "4101",
     "operator-callsign": VALIDATOR,
     out: ".heldout/runs/verify-1",
     "access-log": ".heldout/access.log.jsonl",
     "roy-grant": GRANT,
+    lineage: "repo/protocol/builder-lineage.json",
     ...overrides,
   }).flatMap(([k, v]) => (v === null ? [] : [`--${k}`, v]));
 
 const RECEIPTS = ".heldout/runs/verify-1/witness-receipts.jsonl";
 
 beforeEach(() => {
-  root = mkdtempSync(path.join(tmpdir(), "s41-verify-test-"));
-  vi.spyOn(vaultPolicy, "canonicalRoot").mockImplementation(async () => root);
+  root = realpathSync.native(mkdtempSync(path.join(tmpdir(), "s41-verify-test-")));
+  mkdirSync(repo(), { recursive: true });
+  vi.spyOn(vaultPolicy, "canonicalRoot").mockImplementation(async () => repo());
   vi.spyOn(vaultPolicy, "canonicalVault").mockImplementation(async () => path.join(root, ".heldout"));
   out.length = 0;
-  write("protocol/builder-lineage.json", readFileSync(new URL("protocol/builder-lineage.json", repoRoot), "utf8"));
+  write("repo/protocol/builder-lineage.json", readFileSync(new URL("protocol/builder-lineage.json", repoRoot), "utf8"));
   writeGrant(GRANT);
-  write("runs/probe-receipt.json", {
+  write("repo/runs/probe-receipt.json", {
     schema: "sandbox-probe-receipt/v1",
     image: IMAGE,
     image_digest: DIGEST,
@@ -149,11 +152,19 @@ beforeEach(() => {
     witness_test: { path: "hidden/sum.test.ts", name: "adds" },
     head_files: [{ path: "src/sum.ts", content: BAD }],
   });
+  // Ten synthetic tasks satisfy the fixed admission inventory; these are not project held-out data.
+  for (let n = 90; n < 99; n++) {
+    const id = `H${n}`;
+    for (const file of ["task.json", "variants/c.json", "variants/n.json", "variants/d1.json"]) {
+      write(`.heldout/corpus/${id}/${file}`, read(`.heldout/corpus/H99/${file}`).replaceAll("H99", id));
+    }
+  }
 });
 
 afterEach(() => { vi.restoreAllMocks(); rmSync(root, { recursive: true, force: true }); });
 
 describe("held-out verify (K19): Roy grant, no admission GO", () => {
+  // Ten-task integration tests durably sync every synthetic access-log write; use explicit filesystem timeouts.
   it("what_bug_this_catches: appointment loading reaches the public grant without TDZ and rejects a vault grant", async () => {
     const loaded = await readRoyGrant(root, GRANT);
     expect(loaded.grant.validator).toBe(VALIDATOR);
@@ -165,21 +176,22 @@ describe("held-out verify (K19): Roy grant, no admission GO", () => {
     const { port, state } = fakeDocker();
     const code = await runCorpusVerify(verifyArgs(), io(port));
     expect(code).toBe(0);
-    // 4 checks (clean suite, clean witness, defect witness, near-miss suite), each run twice.
-    expect(state.runs).toBe(8);
+    // Four checks per synthetic task, each run twice.
+    expect(state.runs).toBe(80);
     const lines = read(RECEIPTS).split("\n").filter((l) => l !== "");
-    expect(lines).toHaveLength(4);
+    expect(lines).toHaveLength(40);
     for (const line of lines) {
       const r = WitnessReceiptSchema.parse(JSON.parse(line));
       expect(r.executor).toBe(VALIDATOR);
       expect(r.witnessed).toBe(true);
-      expect(r.task_id).toBe("H99");
+      expect(r.task_id).toMatch(/^H9[0-9]$/);
     }
     const grantRef = { path: GRANT, sha256: sha(GRANT) };
     const summary = JSON.parse(read(".heldout/runs/verify-1/verify-summary.json")) as Record<string, unknown>;
     expect(summary["roy_grant"]).toEqual(grantRef);
     expect(summary["operator_callsign"]).toBe(VALIDATOR);
-    expect(summary["tasks"]).toEqual([{ task_id: "H99", verified: true, failing: 0 }]);
+    expect(summary["tasks"]).toEqual(Array.from({ length: 10 }, (_, i) => ({ task_id: `H${90 + i}`, verified: true, failing: 0 })));
+    expect(summary["input_ceiling"]).toMatchObject({ policy: "review-input-ceiling/v1", ceiling: 12000 });
     const log = read(".heldout/access.log.jsonl").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
     expect(log[0]).toMatchObject({ mode: "verify-begin", split: "heldout", operator_callsign: VALIDATOR, roy_grant: grantRef });
     expect(log.at(-1)).toMatchObject({ mode: "verify", split: "heldout", operator_callsign: VALIDATOR, roy_grant: grantRef });
@@ -188,7 +200,18 @@ describe("held-out verify (K19): Roy grant, no admission GO", () => {
     const printed = out.join("");
     expect(printed).not.toContain("adds");
     expect(printed).not.toContain("commutes");
-  });
+  }, 30000);
+
+  it("what_bug_this_catches: an oversized rendered reviewer input is refused before any witness executes", async () => {
+    const task = JSON.parse(read(".heldout/corpus/H99/task.json")) as Record<string, unknown>;
+    task.spec = "Oversized synthetic source specification. ".repeat(500);
+    write(".heldout/corpus/H99/task.json", task);
+    const { port, state } = fakeDocker();
+    expect(await runCorpusVerify(verifyArgs(), io(port))).toBe(2);
+    expect(state.runs).toBe(0);
+    expect(out.join("")).toContain("details withheld");
+    expect(out.join("")).not.toContain("Oversized synthetic");
+  }, 30000);
 
   it("refuses (exit 2, nothing runs) without a grant, for a non-appointed or builder operator, outside the vault, without an access log", async () => {
     writeGrant("protocol/grants/R3-builder.json", { validator: BUILDER });
@@ -231,27 +254,36 @@ describe("grant -> validator verify -> admit GO -> builder receipts-only", () =>
         io(null),
       );
     expect(await receiptsOnly(null)).toBe(2);
-    write("corpus/ADMISSION.json", readFileSync(new URL("corpus/ADMISSION.json", repoRoot), "utf8"));
-    expect(await receiptsOnly("corpus/ADMISSION.json")).toBe(2);
+    write("repo/corpus/ADMISSION.json", readFileSync(new URL("corpus/ADMISSION.json", repoRoot), "utf8"));
+    expect(await receiptsOnly("repo/corpus/ADMISSION.json")).toBe(2);
 
-    for (const g of GATE_IDS.filter((id) => id !== "G3" && id !== "G4")) write(`.heldout/evidence/${g}.json`, { gate: g });
+    for (const g of GATE_IDS.filter((id) => id !== "G3" && id !== "G4" && id !== "G7")) write(`.heldout/evidence/${g}.json`, { gate: g });
+    // Synthetic fixture-only audit: never evidence of a project leakage/custody audit or independent work.
+    const summaryPath = ".heldout/runs/verify-1/verify-summary.json";
+    const auditPath = ".heldout/evidence/LEAKSCAN.json";
+    write(auditPath, { schema: "MOCK-leakage-custody-audit", synthetic: true, note: "Fixture-only companion; no actual audit performed." });
+    write(".heldout/evidence/G7.json", {
+      schema: "g7-verification-evidence/v1",
+      verification_summary: { path: summaryPath, sha256: sha(summaryPath) },
+      leakage_custody: { path: auditPath, sha256: sha(auditPath) },
+    });
     const gates = GATE_IDS.flatMap((g) => ["--gate", `${g}=${g === "G3" || g === "G4" ? RECEIPTS : `.heldout/evidence/${g}.json`}`]);
     const admitIo = { cwd: root, now: () => "2026-10-27T12:30:00Z", stdout: (t: string) => void out.push(t), stderr: (t: string) => void out.push(t) };
-    expect(await runAdmit(["--invoked-by", BUILDER, "--steward", STEWARD, "--validator", VALIDATOR, "--roy-grant", GRANT, ...gates], admitIo)).toBe(0);
-    const record = AdmissionRecordSchema.parse(JSON.parse(read("corpus/ADMISSION.json")));
+    expect(await runAdmit(["--invoked-by", BUILDER, "--steward", STEWARD, "--validator", VALIDATOR, "--roy-grant", GRANT, "--lineage", "repo/protocol/builder-lineage.json", "--out", "repo/corpus/ADMISSION.json", "--verify-summary", ".heldout/runs/verify-1/verify-summary.json", ...gates], admitIo)).toBe(0);
+    const record = AdmissionRecordSchema.parse(JSON.parse(read("repo/corpus/ADMISSION.json")));
     expect(record.status).toBe("GO");
     expect(record.requires).toEqual([]);
     expect(record.gates.G3).toEqual({ evidence: RECEIPTS, sha256: sha(RECEIPTS) });
     expect(record.roy_grant).toEqual({ path: GRANT, sha256: sha(GRANT) });
 
-    expect(await receiptsOnly("corpus/ADMISSION.json")).toBe(0);
+    expect(await receiptsOnly("repo/corpus/ADMISSION.json")).toBe(0);
     const log = read(".heldout/access.log.jsonl").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
     expect(log.some((e) => e["mode"] === "verify-begin")).toBe(true);
     expect(log.some((e) => e["mode"] === "receipts-only-begin")).toBe(true);
     expect(log.at(-1)?.["mode"]).toBe("receipts-only");
 
     // A GO-shaped record that still lists open requirements is not a usable GO (schema + CLI check).
-    write("corpus/ADMISSION-open.json", { ...record, requires: ["R7"] });
-    expect(await receiptsOnly("corpus/ADMISSION-open.json")).toBe(2);
-  });
+    write("repo/corpus/ADMISSION-open.json", { ...record, requires: ["R7"] });
+    expect(await receiptsOnly("repo/corpus/ADMISSION-open.json")).toBe(2);
+  }, 30000);
 });

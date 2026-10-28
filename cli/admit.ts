@@ -4,7 +4,8 @@
 //
 // Usage: tsx cli/admit.ts --invoked-by <callsign> [--decision GO|NO-GO] [--gate G1=<path> ... --gate G9=<path>]
 //          [--steward <callsign>] [--validator <callsign>] [--roy-grant <path>]
-//          [--root <dir>] [--lineage <path>] [--out <path>] [--dry-run]
+//          [--verify-summary <G7 summary path>] [--root <dir>] [--lineage <path>] [--out <path>] [--dry-run]
+// GO requires G7 wrapper binding both validator summary and separate leakage/custody audit, with input-ceiling coverage.
 // Paths are resolved against --root (default: the current directory, i.e. the repository root) and must stay inside
 // it; they are recorded root-relative. GO only if: a valid Roy R3 grant (roy-grant/v1) exists, all nine gate evidence
 // files exist, G3 and G4 are the validator's held-out `witness-receipts.jsonl` from `corpus-verify --split heldout`
@@ -26,7 +27,7 @@ import { BuilderLineageSchema } from "../src/core/admission/lineage.ts";
 import { Callsign, GATE_IDS } from "../src/core/defectcorpus/schema.ts";
 import type { GateId } from "../src/core/defectcorpus/schema.ts";
 import { UsageError, parseArgs } from "./lib/args.ts";
-import { verifySummary } from "../src/core/protocol/admission-evidence.ts";
+import { G7VerificationEvidenceSchema, verifySummary } from "../src/core/protocol/admission-evidence.ts";
 import { RoyGrantFileSchema } from "../src/core/admission/grant.ts";
 import { isBuilderLineage } from "../src/core/admission/lineage.ts";
 import { canonicalRoot, canonicalVault, contained, inside, privateError } from "./lib/vault.ts";
@@ -100,7 +101,7 @@ export async function runAdmit(argv: readonly string[], io: AdmitIo): Promise<nu
       const found = await gateFact(m[2]!);
       // G3/G4 content (witness receipts) is checked by decideAdmission; the text is never printed.
       const isReceiptGate = (RECEIPT_GATES as readonly GateId[]).includes(id);
-      gates[id] = found === null ? null : isReceiptGate ? { ...found.fact, text: found.bytes.toString("utf8") } : found.fact;
+      gates[id] = found === null ? null : isReceiptGate || id === "G7" ? { ...found.fact, text: found.bytes.toString("utf8") } : found.fact;
     }
 
     let grant: GrantFact | null = null;
@@ -118,12 +119,6 @@ export async function runAdmit(argv: readonly string[], io: AdmitIo): Promise<nu
       }
     }
 
-    const summaryArg = args.get("verify-summary");
-    if (summaryArg !== undefined) {
-      const found = await gateFact(summaryArg);
-      if (!found) throw new UsageError("verification summary missing or outside root");
-      verifySummary(JSON.parse(found.bytes.toString("utf8")), grant?.sha256 ?? null, [gates.G3?.sha256 ?? null, gates.G4?.sha256 ?? null]);
-    }
     const { record, reasons } = decideAdmission({
       requested: decision,
       gates,
@@ -134,6 +129,24 @@ export async function runAdmit(argv: readonly string[], io: AdmitIo): Promise<nu
       lineage,
       now: io.now(),
     });
+    if (record.status === "GO") {
+      const summaryArg = args.get("verify-summary");
+      if (summaryArg === undefined) throw new UsageError("GO requires bound verification summary");
+      const g7 = G7VerificationEvidenceSchema.parse(JSON.parse(gates.G7?.text ?? "null"));
+      const summaryPath = await contained(vault, path.resolve(root, summaryArg));
+      if (path.relative(root, summaryPath).split(path.sep).join("/") !== g7.verification_summary.path) throw new UsageError("verification summary path mismatch");
+      const found = await gateFact(summaryArg);
+      if (!found || found.fact.path !== g7.verification_summary.path || found.fact.sha256 !== g7.verification_summary.sha256) throw new UsageError("verification summary binding mismatch");
+      const auditPath = await contained(vault, path.resolve(root, g7.leakage_custody.path));
+      const audit = await gateFact(g7.leakage_custody.path);
+      if (!audit || audit.fact.path !== g7.leakage_custody.path || audit.fact.sha256 !== g7.leakage_custody.sha256) throw new UsageError("leakage/custody audit binding mismatch");
+      const wrapperPath = await contained(outer, path.resolve(root, gates.G7!.path));
+      const identities = await Promise.all([wrapperPath, summaryPath, auditPath].map((p) => stat(p, {bigint: true})));
+      if (new Set(identities.map((s) => `${s.dev}/${s.ino}`)).size !== 3) throw new UsageError("G7 evidence files must not alias");
+      // Audit contents remain the validator's procedural leakage/custody evidence, never printed or fabricated here.
+      verifySummary(JSON.parse(found.bytes.toString("utf8")), grant?.sha256 ?? null,
+        [gates.G3?.sha256 ?? null, gates.G4?.sha256 ?? null], [gates.G3?.text, gates.G4?.text]);
+    }
     const text = `${JSON.stringify(record, null, 2)}\n`;
     if (args.has("dry-run")) io.stdout(text);
     else {
@@ -145,7 +158,7 @@ export async function runAdmit(argv: readonly string[], io: AdmitIo): Promise<nu
     }
     for (const r of reasons) io.stdout(`  - ${r}\n`);
     return record.status === "GO" ? 0 : 1;
-  } catch (error) {
+  } catch {
     io.stderr(privateError("admit"));
     return 2;
   }

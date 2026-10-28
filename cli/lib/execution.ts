@@ -92,7 +92,7 @@ export async function loadExecution(v: VaultSession, directory: string, terminal
   const locked = await readExecutionInputs(v, dir, state.execution, lock);
   if (!generationSource) { const current: Record<string, Uint8Array> = {}; for (const key of Object.keys(lock.inputs)) current[key] = await v.readKey(key); validateLock(lock, current); }
   if (lock.inputs["corpus/ADMISSION.json"] !== state.execution.admission_sha256 || lock.inputs["corpus/manifest.public.json"] !== lock.corpus_sha256 || lock.inputs["protocol/preregistration.json"] !== lock.config_sha256 || !locked["protocol/model-lock.json"] || hashCanonical(JSON.parse(new TextDecoder().decode(locked["protocol/model-lock.json"]))) !== hashCanonical(lock.model_lock)) throw new Error("source admission/corpus/config/model commitment");
-  if (lock.stage === "B") bindBGenerationPlan(validateBGenerationCorpus(lock, locked), plan.slots, lock.corpus_sha256);
+  if (lock.stage === "B") bindBGenerationPlan(validateBGenerationCorpus(lock, locked, (bytes) => new TextDecoder().decode(bytes)), plan.slots, lock.corpus_sha256);
   const lockedPlan = locked[state.execution.plan_input_path];
   if (!lockedPlan || hashCanonical(RunPlanSchema.parse(JSON.parse(new TextDecoder().decode(lockedPlan)))) !== state.plan_sha256 || new Set(plan.slots.map((s) => s.purpose)).size !== 1) throw new Error("plan is not the authorized locked input");
   const stage = StageGrantSchema.parse(JSON.parse(new TextDecoder().decode(locked[lock.stage_grant_path])));

@@ -25,17 +25,17 @@ export function bGenerationHash(lock: { b_generation_corpus_sha256?: string; con
   return hashCanonical({ schema: "b-generation-lock/v2", generation_corpus_sha256: Sha256Hex.parse(lock.b_generation_corpus_sha256), config_sha256: lock.config_sha256, authors, system_sha256: sha256Hex(AUTHOR_SYSTEM) });
 }
 /** Resolve every task/suite from exact locked bytes, rather than trusting a caller's opaque descriptor hash. */
-export function validateBGenerationCorpus(lock: RunLock, bytes: Readonly<Record<string, Uint8Array>>): BGenerationCorpus {
+export function validateBGenerationCorpus(lock: RunLock, bytes: Readonly<Record<string, Uint8Array>>, decodeUtf8: (bytes: Uint8Array) => string): BGenerationCorpus {
   const read = (key: string, hash: string): unknown => {
     if (!bytes[key] || lock.inputs[key] !== hash || sha256Hex(bytes[key]) !== hash) throw new Error("B generation input drift");
-    return JSON.parse(new TextDecoder().decode(bytes[key]));
+    return JSON.parse(decodeUtf8(bytes[key]));
   };
   if (lock.stage !== "B" || !lock.b_generation_corpus_path?.startsWith("vault/") || !lock.b_generation_corpus_sha256 || lock.b_generation_sha256 !== bGenerationHash(lock)) throw new Error("B generation descriptor missing/drift");
   const corpus = BGenerationCorpusSchema.parse(read(lock.b_generation_corpus_path, lock.b_generation_corpus_sha256));
   const authors = z.object({ authors: z.object({ A: LockedReviewerSchema, B: LockedReviewerSchema }) }).parse(lock.model_lock).authors;
   if (corpus.admission_sha256 !== lock.inputs["corpus/ADMISSION.json"] || corpus.config_sha256 !== lock.config_sha256 || hashCanonical(corpus.authors) !== hashCanonical(authors) || corpus.system_sha256 !== sha256Hex(AUTHOR_SYSTEM) || !corpus.admitted_manifest_path.startsWith("vault/")) throw new Error("B admitted corpus/config/model/prompt drift");
   const manifest = z.object({ schema: z.literal("public-manifest/v1"), pending_activation: z.literal(false), manifest_sha256: Sha256Hex, records: z.array(PublicManifestRecordSchema).min(1) }).parse(read(corpus.admitted_manifest_path, corpus.admitted_manifest_sha256));
-  if (manifest.records.some((r) => r.manifestHash !== manifest.manifest_sha256) || new Set(manifest.records.map((r) => r.id)).size !== manifest.records.length || hashCanonical([...manifest.records].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(({ manifestHash: _hash, ...r }) => r)) !== manifest.manifest_sha256) throw new Error("B admitted manifest commitment");
+  if (manifest.records.some((r) => r.manifestHash !== manifest.manifest_sha256) || new Set(manifest.records.map((r) => r.id)).size !== manifest.records.length || hashCanonical([...manifest.records].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).map(({ manifestHash: _hash, ...r }) => { void _hash; return r; })) !== manifest.manifest_sha256) throw new Error("B admitted manifest commitment");
   const config = z.object({ quotas: z.object({ stratum_b: z.object({ heldout_tasks: z.number().int().positive() }) }) }).parse(read("protocol/preregistration.json", lock.config_sha256));
   if (corpus.tasks.length !== config.quotas.stratum_b.heldout_tasks || new Set(corpus.tasks.map((t) => t.task_id)).size !== corpus.tasks.length || new Set(corpus.tasks.map((t) => t.task_path)).size !== corpus.tasks.length) throw new Error("B admitted task inventory");
   for (const entry of corpus.tasks) {

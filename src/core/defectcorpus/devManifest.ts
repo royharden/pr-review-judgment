@@ -22,6 +22,7 @@ export function buildDevManifest(entries: readonly { task: Task; variants: reado
       variantIds.add(variant.variant_id);
       hashes.push(changeContentSha256(task.spec, touchedFiles(variant, task)));
       const { manifestHash: _placeholder, ...record } = toPublicRecord(variant, task, { manifestHash: "0".repeat(64), embargoStatus: "open" });
+      void _placeholder;
       return record;
     });
   }).sort((a, b) => compareCodeUnits(a.id, b.id));

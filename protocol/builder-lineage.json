@@ -2,7 +2,7 @@
   "schema": "builder-lineage/v1",
   "project": "S41-pr-review-judgment",
   "match": "callsign_id_prefix_4",
-  "note": "Builder lineage = S41-INT (0801) and every subagent claimed under it (PLAN §7, M2 acceptance 6). S41-INT appends every new child callsign here as soon as it is claimed, before the child does any work. Matching is by the 4-character AgentNamer id prefix (e.g. 0830), not the full callsign, so relabelling a callsign cannot escape the list. No member may sign corpus/ADMISSION.json, author held-out content, or operate corpus-verify on the held-out split (K19). Validated by src/core/admission/lineage.ts BuilderLineageSchema.",
+  "note": "Builder lineage = S41-INT (0801) and every subagent claimed under it (PLAN \u00c2\u00a77, M2 acceptance 6). S41-INT appends every new child callsign here as soon as it is claimed, before the child does any work. Matching is by the 4-character AgentNamer id prefix (e.g. 0830), not the full callsign, so relabelling a callsign cannot escape the list. No member may sign corpus/ADMISSION.json, author held-out content, or operate corpus-verify on the held-out split (K19). Validated by src/core/admission/lineage.ts BuilderLineageSchema.",
   "root": "0801_Claude_Opus55_S41INT",
   "members": [
     {
@@ -144,6 +144,26 @@
       "id": "0942",
       "callsign": "0942_Codex_gpt-61-sol_Sub_M4ReviewXhigh",
       "role": "M4 rereview xhigh after second failed review"
+    },
+    {
+      "id": "0948",
+      "callsign": "0948_Codex_gpt-61-sol_N20CodexInt41",
+      "role": "Round 2 successor integrator/builder"
+    },
+    {
+      "id": "0952",
+      "callsign": "0952_Codex_gpt-61-sol_Sub_R2Docs",
+      "role": "Round 2 documentation DL"
+    },
+    {
+      "id": "0956",
+      "callsign": "0956_Codex_gpt-61-sol_Sub_AdmissionCeiling",
+      "role": "Round 2 admission-ceiling DL"
+    },
+    {
+      "id": "0957",
+      "callsign": "0957_Codex_gpt-61-sol_Sub_RuntimeFixes",
+      "role": "Round 2 runtime-fix DL"
     }
   ]
 }

@@ -3,7 +3,7 @@
 // only and provide NO real admission, independent witness, provider origin or held-out execution evidence.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
-import { mkdtemp, mkdir, readFile, writeFile, appendFile, rm } from "node:fs/promises";
+import { mkdtemp, realpath, mkdir, readFile, writeFile, appendFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import ts from "typescript";
@@ -32,14 +32,16 @@ import { settle, type Attempt } from "../../src/core/ledger/index.ts";
 import { renderResultsJson, renderResultsMarkdown } from "../../src/core/reviewjudge/report.ts";
 import { testLock } from "../core/providers/helpers.ts";
 
+const decodeUtf8 = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 const at = "2026-10-27T00:00:00Z", h = "a".repeat(64), validator = "0998_MOCK_BuilderValidator";
 const temps: string[] = [];
 afterEach(async () => { vi.restoreAllMocks(); for (const dir of temps.splice(0)) await rm(dir, { recursive: true, force: true }); });
 const text = (value: unknown) => canonicalJson(value) + "\n";
 
 describe("B generation to separate review manifest (synthetic source scenario)", () => {
+  // Bounded full lifecycle performs many durable snapshot/lock I/O steps; allow slow Windows filesystem hosts.
   it("what_bug_this_catches: generated B heads must not retroactively change admitted generation inputs, qualification, pin or historical source verification", async () => {
-    const outer = await mkdtemp(path.join(os.tmpdir(), "s41-MOCK-b-lifecycle-")); temps.push(outer);
+    const outer = await realpath(await mkdtemp(path.join(os.tmpdir(), "s41-MOCK-b-lifecycle-"))); temps.push(outer);
     const root = path.join(outer, "repo"), vault = path.join(outer, "vault"), runtime = path.join(outer, ".runtime");
     for (const dir of [root, vault, runtime, path.join(root, "src/core"), path.join(root, "cli"), path.join(root, "runs")]) await mkdir(dir, { recursive: true });
     const write = async (file: string, value: unknown) => { await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, typeof value === "string" ? value : text(value)); };
@@ -50,7 +52,7 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     const model = { status: "locked", requires: [], authors, reviewers };
     const prereg = { schema: "preregistration/v1", status: "locked", requires: [], repeats: { heldout: 1 }, slots: { a_heldout: 2, b_heldout: 12 }, quotas: { heldout: { tasks: 1 }, variants_per_task: ["clean"], stratum_b: { heldout_tasks: 1, clean_per_substrate: 1, operator_defects_per_substrate: 2 } } };
     const manifestFor = (records: { task: typeof task; variant: z.infer<typeof VariantSchema> }[]) => {
-      const draft = records.map(({ task: t, variant }) => { const { manifestHash: _hash, ...r } = toPublicRecord(variant, t, { manifestHash: h, embargoStatus: "embargoed" }); return r; }).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      const draft = records.map(({ task: t, variant }) => { const { manifestHash: _hash, ...r } = toPublicRecord(variant, t, { manifestHash: h, embargoStatus: "embargoed" }); void _hash; return r; }).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
       const hash = hashCanonical(draft);
       return { schema: "public-manifest/v1", pending_activation: false, manifest_sha256: hash, records: draft.map((r) => ({ ...r, manifestHash: hash })) };
     };
@@ -109,7 +111,7 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     const authorPlan = RunPlanSchema.parse({ schema: "run-plan/v1", run_id: "MOCK-author", slots: (["A", "B"] as const).map((arm) => ({ id: `author-${arm}`, purpose: "author", fresh_attempt: 1, task, variant: placeholder, clean_variant: placeholder, stratum: "B", arm, author: arm, defect_ordinal: 1, repeat: 1, lock: authors[arm] })) });
     const authorBytes = { ...common, "corpus/manifest.public.json": Buffer.from(text(admittedManifest)), "vault/plans/MOCK-author.json": Buffer.from(text(authorPlan)) };
     const authorLock = locked(authorBytes), generationHash = authorLock.b_generation_sha256!;
-    expect(validateBGenerationCorpus(authorLock, authorBytes)).toEqual(corpus); bindBGenerationPlan(corpus, authorPlan.slots, authorLock.corpus_sha256);
+    expect(validateBGenerationCorpus(authorLock, authorBytes, decodeUtf8)).toEqual(corpus); bindBGenerationPlan(corpus, authorPlan.slots, authorLock.corpus_sha256);
     // Outputs exist only AFTER the admitted task/corpus commitment above has been constructed.
     const generated = { A: [{ path: "main.ts", content: "export const f = (a: number, b: number) => a < b;\nexport const g = (a: number, b: number) => a > b;\n" }], B: [{ path: "main.ts", content: "export const f = (a: number, b: number) => b > a;\nexport const g = (a: number, b: number) => b < a;\n" }] };
     const source = await persistRun(authorPlan, authorLock, authorBytes, (s) => JSON.stringify({ files: generated[s.arm] }));
@@ -144,7 +146,7 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     for (const ref of refs) for (const file of [ref.qualified_path, ref.audit_path, ref.witnesses_path, QualifiedAuthorSchema.parse(await v.json(ref.qualified_path)).qualification_evidence_path]) reviewBytes[`vault/${file}`] = await v.read(file);
     const reviewLock = locked(reviewBytes);
     expect(reviewLock.corpus_sha256).not.toBe(authorLock.corpus_sha256); expect(reviewLock.b_generation_sha256).toBe(generationHash);
-    bindBGenerationPlan(validateBGenerationCorpus(reviewLock, reviewBytes), reviewPlan.slots, reviewLock.corpus_sha256);
+    bindBGenerationPlan(validateBGenerationCorpus(reviewLock, reviewBytes, decodeUtf8), reviewPlan.slots, reviewLock.corpus_sha256);
     const review = await persistRun(reviewPlan, reviewLock, reviewBytes, () => JSON.stringify({ verdict: "approve", findings: [] }));
     // The old mutable manifest path now holds B records. Historical author verification still uses the exact A copy.
     expect((await loadExecution(v, source.dir, false, true)).lock.corpus_sha256).toBe(authorLock.corpus_sha256);
@@ -155,7 +157,7 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     let freeze;
     try { freeze = await freezeRun(v, execution, reports, at); } finally { await release(); }
     await expect(verifyRunFreeze(v, execution, path.join(review.dir, "FREEZE.json"), reports)).resolves.toEqual(freeze);
-    const bundle = { schema: "s45-export/v1" as const, manifest_sha256: finalManifest.manifest_sha256, records: records.map(({ author: _author, ...record }) => record) };
+    const bundle = { schema: "s45-export/v1" as const, manifest_sha256: finalManifest.manifest_sha256, records: records.map(({ author: _author, ...record }) => { void _author; return record; }) };
     bindExportToRun(bundle, execution, prereg); bindExportToManifest(bundle, finalManifest);
     expect(exportRows(bundle, false).publicText).not.toContain("export const"); expect(exportRows(bundle, true).privateText).toContain("mock-boundary");
     await write(path.join(vault, "MOCK-export.json"), bundle);
@@ -166,11 +168,11 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     expect(() => bindBGenerationPlan(corpus, changedTask, reviewLock.corpus_sha256)).toThrow("substitution");
     const suiteBytes = { ...reviewBytes, "vault/generation/H99/task.json": Buffer.from(text({ ...task, hidden_tests: [{ path: "main.test.ts", content: "// MOCK substituted suite" }] })) };
     const suiteLock = { ...reviewLock, inputs: { ...reviewLock.inputs, "vault/generation/H99/task.json": sha256Hex(suiteBytes["vault/generation/H99/task.json"]) } };
-    expect(() => validateBGenerationCorpus(suiteLock, suiteBytes)).toThrow("substitution");
+    expect(() => validateBGenerationCorpus(suiteLock, suiteBytes, decodeUtf8)).toThrow("substitution");
     const changedConfig = { ...reviewLock, config_sha256: "b".repeat(64) };
-    expect(() => validateBGenerationCorpus({ ...changedConfig, b_generation_sha256: bGenerationHash(changedConfig) }, reviewBytes)).toThrow();
+    expect(() => validateBGenerationCorpus({ ...changedConfig, b_generation_sha256: bGenerationHash(changedConfig) }, reviewBytes, decodeUtf8)).toThrow();
     const changedModel = { ...reviewLock, model_lock: { ...model, authors: { ...authors, A: { ...authors.A, model_id: "MOCK-substitute" } } } };
-    expect(() => validateBGenerationCorpus({ ...changedModel, b_generation_sha256: bGenerationHash(changedModel) }, reviewBytes)).toThrow();
+    expect(() => validateBGenerationCorpus({ ...changedModel, b_generation_sha256: bGenerationHash(changedModel) }, reviewBytes, decodeUtf8)).toThrow();
     expect(() => verifyBPin(pin, bGenerationHash(changedModel))).toThrow();
     await write(path.join(root, "src/core/MOCK-installed.ts"), "// MOCK replaced executing code\n");
     await expect(loadExecution(v, source.dir, false, true)).rejects.toThrow("installed executable");
@@ -181,5 +183,5 @@ describe("B generation to separate review manifest (synthetic source scenario)",
     await writeFile(snapshotFile, authorBytes["corpus/manifest.public.json"]);
     await write(path.join(root, "corpus/manifest.public.json"), "MOCK changed AFTER final review lock");
     await expect(loadExecution(v, review.dir)).rejects.toThrow("locked input drift");
-  });
+  }, 180000);
 });

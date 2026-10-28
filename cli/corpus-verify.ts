@@ -45,6 +45,7 @@ import { createWitnessRunner } from "../src/core/sandbox/runner.ts";
 import type { DockerPort, WitnessRunResult } from "../src/core/sandbox/runner.ts";
 import { buildReceipt, judgeTask, planVerification, runOrders, runSeed } from "../src/core/sandbox/verifyplan.ts";
 import type { VerificationCheck } from "../src/core/sandbox/verifyplan.ts";
+import { reviewInputCeiling } from "../src/core/protocol/admission-evidence.ts";
 import { UsageError, parseArgs } from "./lib/args.ts";
 import { createDockerExecutor, newContainerName } from "./lib/docker.ts";
 import { inside, contained, canonicalRoot, canonicalVault } from "./lib/vault.ts";
@@ -257,6 +258,7 @@ export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Pr
 
     const privateRead = split === "heldout" ? async (p: string): Promise<unknown> => { const vault = await canonicalVault(await canonicalRoot()); const target = await contained(vault, p); await appendAccessLog(path.resolve(io.cwd, accessLog!), { at: io.now(), mode: "verify-read", split, operator_callsign: operator, path_sha256: sha256Hex(path.relative(vault, target)) }); return readJson(await contained(vault, target)); } : undefined;
     const loaded = await loadCorpus(path.resolve(io.cwd, corpus), split, privateRead);
+    const inputCeiling = { policy: "review-input-ceiling/v1" as const, ceiling: 12000, variants: loaded.flatMap(({ task, variants }) => variants.map((variant) => reviewInputCeiling(task, variant))) };
     const checks: VerificationCheck[] = loaded.flatMap(({ task, variants }) => planVerification(task, variants));
     const runner = createWitnessRunner({ probeReceiptText: probeText, docker: io.docker, owner: operator, newContainerName: io.newContainerName });
     const results = new Map<string, WitnessRunResult[]>();
@@ -305,6 +307,7 @@ export async function runCorpusVerify(argv: readonly string[], io: VerifyIo): Pr
       image_digest: qualification.imageDigest,
       probe_receipt_sha256: qualification.receiptSha256,
       receipts_sha256: sha256Hex(receiptsText),
+      input_ceiling: inputCeiling,
       checks: checks.length,
       witnessed: [...receipts.values()].filter((r) => r.witnessed).length,
       // Held-out summaries carry task ids and counts only, never check ids (they contain test names).

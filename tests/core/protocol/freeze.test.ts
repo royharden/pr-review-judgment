@@ -1,7 +1,7 @@
 // Deferred regression source. All examples are synthetic; the execution loader is mocked and no
 // fixture transport or this synthetic live-shaped state can create an admitted measured run.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from "node:fs/promises";
+import { mkdtemp, realpath, mkdir, readFile, writeFile, rm, symlink } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { TaskSchema, CleanVariant } from "../../../src/core/defectcorpus/schema.ts";
@@ -33,6 +33,7 @@ function specimen(dir = "synthetic-run"): Execution {
 const prereg = { schema: "preregistration/v1", status: "locked", requires: [], repeats: { heldout: 1 }, slots: { a_heldout: 2, b_heldout: 12 }, quotas: { heldout: { tasks: 1 }, variants_per_task: ["clean"], stratum_b: { heldout_tasks: 1, clean_per_substrate: 1, operator_defects_per_substrate: 2 } } };
 function bundleAndManifest() {
   const { manifestHash: _hash, ...draft } = toPublicRecord(clean, task, { manifestHash: h, embargoStatus: "embargoed" });
+  void _hash;
   const manifestHash = hashCanonical([draft]);
   return { bundle: { schema: "s45-export/v1" as const, manifest_sha256: manifestHash, records: [record] }, manifest: { schema: "public-manifest/v1", pending_activation: false, manifest_sha256: manifestHash, records: [{ ...draft, manifestHash }] } };
 }
@@ -81,6 +82,7 @@ describe("freeze/release custody (runtime deferred)", () => {
   it("what_bug_this_catches: a grant for another freeze, destination or exact output cannot open heldout contents", () => {
     const { bundle } = bundleAndManifest(), frozen = receipt(specimen()), rows = exportRows(bundle, true);
     const { schema: _schema, frozen_at: _at, sha256, ...bindings } = frozen;
+    void _schema; void _at;
     const publicOut = path.resolve("synthetic-public.jsonl"), privateOut = path.resolve("synthetic-private.jsonl");
     const grant = { schema: "roy-release-grant/v2", approved_by: "Roy", decision: "release", scope: ["heldout-source", "private-labels"], ...bindings, freeze_sha256: sha256, stage: "A", manifest_sha256: bundle.manifest_sha256, export_sha256: h, public_sha256: sha256Hex(rows.publicText), private_sha256: sha256Hex(rows.privateText), public_out_path_sha256: sha256Hex(publicOut), private_out_path_sha256: sha256Hex(privateOut), issued_at: at };
     expect(() => bindReleaseGrant(grant, frozen, "A", bundle.manifest_sha256, h, rows, publicOut, privateOut)).not.toThrow();
@@ -91,7 +93,7 @@ describe("freeze/release custody (runtime deferred)", () => {
     expect(embargoed.publicText).not.toContain("export const"); expect(embargoed.privateText).toBe("\n");
   });
   it("what_bug_this_catches: freeze is exclusive, survives reread, refuses changed reports and shares owner exclusion", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "s41-freeze-")); temp.push(root);
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "s41-freeze-"))); temp.push(root);
     const dir = path.join(root, "synthetic-run"), reports = path.join(dir, "reports"); await mkdir(reports, { recursive: true });
     const e = specimen(dir), report = frozenReport(e, at);
     await writeFile(path.join(reports, "results.json"), renderResultsJson(report)); await writeFile(path.join(reports, "results.md"), renderResultsMarkdown(report));
@@ -109,7 +111,7 @@ describe("freeze/release custody (runtime deferred)", () => {
     } finally { await release(); }
   });
   it("what_bug_this_catches: symlinked input, run directory and output ancestor cannot cross the custody boundary", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "s41-custody-")); temp.push(root);
+    const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "s41-custody-"))); temp.push(root);
     const vault = path.join(root, "vault"), outside = path.join(root, "outside"); await mkdir(vault); await mkdir(outside);
     await writeFile(path.join(outside, "secret.json"), "PRIVATE_SOURCE_SENTINEL");
     await symlink(outside, path.join(vault, "redirect"), process.platform === "win32" ? "junction" : "dir");

@@ -42,7 +42,7 @@ describe("locked look scopes", () => {
     expect(() => authorizeLook([look], { ...look, run_id: "same-lock", purpose: "author", stage: "B" })).toThrow();
   });
   it("what_bug_this_catches: legacy ambiguous scope cannot authorize another fresh look", () => {
-    const { purpose: _p, stage: _s, ...legacy } = look;
+    const { purpose: _p, stage: _s, ...legacy } = look; void _p; void _s;
     expect(() => authorizeLook([legacy], { ...look, run_id: "reset", lock_sha256: other, stage: "B" })).toThrow();
   });
 });

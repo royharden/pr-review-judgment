@@ -28,7 +28,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["cli/**/*.ts", "tests/**/*.ts", "*.config.ts", "*.config.js"],
+    files: ["cli/**/*.ts", "tests/**/*.ts", "*.config.ts", "*.config.js", "scripts/**/*.mjs"],
     languageOptions: { globals: { ...globals.node } },
   },
   {

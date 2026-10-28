@@ -10,7 +10,7 @@ describe("keyless report replay", () => {
     expect(a.sha256).toBe(b.sha256); expect(a.json).toBe(b.json); expect(a.markdown).toContain("MOCK"); expect(a.markdown).toContain("NOT MEASURED");
   });
   it("what_bug_this_catches: missing recordings cannot be counted as a successful completed run", async () => {
-    const b = bundle(); const invalid = { ...b, slots: b.slots.map(({ fixture: _fixture, ...s }) => s) };
+    const b = bundle(); const invalid = { ...b, slots: b.slots.map(({ fixture: _fixture, ...s }) => { void _fixture; return s; }) };
     await expect(replay(invalid)).rejects.toThrow();
   });
 });

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "description": "Seeded PR review judgment study: a preregistered protocol experiment on whether automated reviewers localize seeded defects, falsely reject clean code, and what it costs. Offline Node CLI + static viewer. NOT MEASURED.",
-  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22"

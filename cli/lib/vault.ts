@@ -89,7 +89,7 @@ export async function openVault(args: ParsedArgs, command: string) {
   validateLock(lock, lockedBytes);
   if (lock.inputs["corpus/ADMISSION.json"] !== sha256Hex(admissionBytes) || lock.inputs[lock.stage_grant_path] !== lock.stage_grant_sha256 || !lock.inputs[lock.probe_path]) throw new Error("unlocked custody gates");
   if (lock.inputs["corpus/manifest.public.json"] !== lock.corpus_sha256 || lock.inputs["protocol/preregistration.json"] !== lock.config_sha256 || !lockedBytes["protocol/model-lock.json"] || hashCanonicalJson(lockedBytes["protocol/model-lock.json"]!) !== canonicalJson(lock.model_lock)) throw new Error("custody corpus/config/model commitment");
-  const generationCorpus = lock.stage === "B" ? validateBGenerationCorpus(lock, lockedBytes) : null;
+  const generationCorpus = lock.stage === "B" ? validateBGenerationCorpus(lock, lockedBytes, (bytes) => new TextDecoder().decode(bytes)) : null;
   if (lock.stage === "B" && (!stageGrant.dev_qualification || !qualifyDev(stageGrant.dev_qualification.hit, stageGrant.dev_qualification.non_valid, stageGrant.dev_qualification.planned))) throw new Error("B estimability gate");
   if (!qualifySandbox(new TextDecoder().decode(lockedBytes[lock.probe_path]), lock.sandbox_image).qualified) throw new Error("sandbox gate");
   return { root, vault, operator, admission, appointment, lock, stageGrant, generationCorpus, read, json, readKey, destination, directory, audit,

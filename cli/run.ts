@@ -1,5 +1,5 @@
 // Host effects only. Direct CLI has no implicit credential discovery or network transport.
-import { open, readFile, writeFile, rename, mkdir, unlink, readdir, realpath } from "node:fs/promises";
+import { open, readFile, writeFile, rename, mkdir, unlink, readdir } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
@@ -7,7 +7,7 @@ import { parseArgs } from "./lib/args.ts";
 import { canonicalJson, hashCanonical } from "../src/core/defectcorpus/hashes.ts";
 import { sha256Hex } from "../src/core/hash/sha256.ts";
 import { reserve, settle, worstCase, type Attempt, type Budget, type Price } from "../src/core/ledger/index.ts";
-import { newSlot, recover, retryDecision, transition, type Slot } from "../src/core/runstate/index.ts";
+import { newSlot, recover, retryDecision, transition } from "../src/core/runstate/index.ts";
 import { RunPlanSchema, requestFor } from "../src/core/runstate/recordings.ts";
 import { authorizeLook, lockHash, qualifyDev, requireAdmission, validateLock, type Look } from "../src/core/protocol/index.ts";
 import { createProvider, type Transport } from "../src/core/providers/port.ts";
@@ -226,7 +226,7 @@ async function collectRun(argv: readonly string[], io: RunIo): Promise<number> {
       if (planned.purpose === "author") { await persist(slot.id, "awaiting_author_qualification"); return 0; }
     }
     snapshot.status = "terminal_complete"; await persist(null, snapshot.status); io.stdout(`run ${plan.run_id}: terminal_complete\n`); return 0;
-  } catch (error) {
+  } catch {
     if (appLedger && appLedgerPath) { appLedger = appLedger.map((a) => a.state === "reserved" ? { ...a, state: "unknown" } : a); await durableWrite(appLedgerPath, appLedger); }
     if (snapshot && statePath) { snapshot.status = "terminal_partial"; snapshot.slots = snapshot.slots.map((s) => ["planned", "released", "failed_pre_send"].includes(s.state) && s.attempts === 0 ? { ...s, state: "cancelled" } : ["reserved", "sent"].includes(s.state) ? { ...s, state: "unknown" } : s); snapshot.stop_reason = "execution stopped; private details withheld"; snapshot.events.push({ at: io.now(), slot_id: null, state: "terminal_partial", reason: snapshot.stop_reason }); await durableWrite(statePath, snapshot); await durableText(path.join(path.dirname(statePath), "events.jsonl"), snapshot.events.map(canonicalJson).join("\n") + "\n"); }
     io.stderr(privateError("run")); return 2;

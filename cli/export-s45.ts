@@ -46,7 +46,7 @@ export function bindExportToRun(bundle: Bundle, execution: Execution, rawPreregi
 export function bindExportToManifest(bundle: Bundle, rawManifest: unknown): void {
   const manifest = Manifest.parse(rawManifest);
   const records = [...manifest.records].sort((a, b) => compareCodeUnits(a.id, b.id));
-  if (new Set(records.map((r) => r.id)).size !== records.length || records.some((r) => r.manifestHash !== manifest.manifest_sha256) || hashCanonical(records.map(({ manifestHash: _hash, ...r }) => r)) !== manifest.manifest_sha256 || bundle.manifest_sha256 !== manifest.manifest_sha256 || records.length !== bundle.records.length) throw new Error("manifest commitment mismatch");
+  if (new Set(records.map((r) => r.id)).size !== records.length || records.some((r) => r.manifestHash !== manifest.manifest_sha256) || hashCanonical(records.map(({ manifestHash: _hash, ...r }) => { void _hash; return r; })) !== manifest.manifest_sha256 || bundle.manifest_sha256 !== manifest.manifest_sha256 || records.length !== bundle.records.length) throw new Error("manifest commitment mismatch");
   const projected = bundle.records.map(({ task, variant }) => {
     const committed = records.find((r) => r.id === variantChangeId(variant, task));
     if (!committed) throw new Error("record absent from committed manifest");
@@ -80,48 +80,49 @@ export function bindReleaseGrant(raw: unknown, freeze: Freeze, stage: "A" | "B",
 export async function runExportS45(argv: readonly string[]): Promise<number> {
   let releaseOwner: (() => Promise<void>) | undefined;
   try {
-    const args = parseArgs(argv, { values: [...CUSTODY_FLAGS, "bundle", "public-out", "private-out", "roy-grant", "run", "freeze", "reports"], booleans: ["release-authorized", "dev"] });
-    if (!args.get("bundle") || !args.get("public-out")) throw new Error("bundle/output required");
-    if (args.has("dev")) {
-      if (args.has("release-authorized") || ["private-out", "roy-grant", "run", "freeze", "reports", "operator-callsign", "lock", "access-log"].some((f) => args.get(f))) throw new Error("dev has no measured/release authority");
-      const root = await canonicalRoot(args.get("root"));
-      const bundle = ExportBundleSchema.parse(await publicJson(root, args.get("bundle")!));
-      if (bundle.records.some((r) => r.task.split !== "dev")) throw new Error("dev refuses heldout");
-      const rows = exportRows(bundle, false);
-      const draft = bundle.records.map(({ task, variant }) => { const { manifestHash: _hash, ...record } = toPublicRecord(variant, task, { manifestHash: bundle.manifest_sha256, embargoStatus: "open" }); return record; }).sort((a, b) => compareCodeUnits(a.id, b.id));
-      if (hashCanonical(draft) !== bundle.manifest_sha256) throw new Error("dev manifest commitment mismatch");
-      await durableNew(await contained(root, path.resolve(root, args.get("public-out")!), true), rows.publicText);
+    try {
+      const args = parseArgs(argv, { values: [...CUSTODY_FLAGS, "bundle", "public-out", "private-out", "roy-grant", "run", "freeze", "reports"], booleans: ["release-authorized", "dev"] });
+      if (!args.get("bundle") || !args.get("public-out")) throw new Error("bundle/output required");
+      if (args.has("dev")) {
+        if (args.has("release-authorized") || ["private-out", "roy-grant", "run", "freeze", "reports", "operator-callsign", "lock", "access-log"].some((f) => args.get(f))) throw new Error("dev has no measured/release authority");
+        const root = await canonicalRoot(args.get("root"));
+        const bundle = ExportBundleSchema.parse(await publicJson(root, args.get("bundle")!));
+        if (bundle.records.some((r) => r.task.split !== "dev")) throw new Error("dev refuses heldout");
+        const rows = exportRows(bundle, false);
+        const draft = bundle.records.map(({ task, variant }) => { const { manifestHash: _hash, ...record } = toPublicRecord(variant, task, { manifestHash: bundle.manifest_sha256, embargoStatus: "open" }); void _hash; return record; }).sort((a, b) => compareCodeUnits(a.id, b.id));
+        if (hashCanonical(draft) !== bundle.manifest_sha256) throw new Error("dev manifest commitment mismatch");
+        await durableNew(await contained(root, path.resolve(root, args.get("public-out")!), true), rows.publicText);
+        return 0;
+      }
+      if (!args.get("run") || !args.get("freeze")) throw new Error("heldout export needs exact run/freeze");
+      const v = await openVault(args, "export-s45");
+      const dir = await contained(v.vault, path.resolve(v.vault, args.get("run")!));
+      releaseOwner = await exclusive(await v.destination(path.join(dir, "OWNER.lock")), `export-${process.pid}`);
+      const execution = await loadExecution(v, dir, true);
+      const freeze = await verifyRunFreeze(v, execution, args.get("freeze")!, args.get("reports") ?? path.join(dir, "reports"));
+      const bytes = await v.read(args.get("bundle")!);
+      const bundle = ExportBundleSchema.parse(JSON.parse(bytes.toString("utf8")));
+      bindExportToRun(bundle, execution, JSON.parse((await v.readKey("protocol/preregistration.json")).toString("utf8")));
+      const manifestBytes = await v.readKey("corpus/manifest.public.json");
+      if (sha256Hex(manifestBytes) !== freeze.corpus_sha256) throw new Error("frozen corpus drift");
+      bindExportToManifest(bundle, JSON.parse(manifestBytes.toString("utf8")));
+      const release = args.has("release-authorized"), rows = exportRows(bundle, release);
+      if (!release) {
+        if (args.get("private-out") || args.get("roy-grant")) throw new Error("unscoped release");
+        await durableNew(await v.destination(args.get("public-out")!), rows.publicText);
+      } else {
+        if (!args.get("roy-grant") || !args.get("private-out")) throw new Error("release needs scoped public grant/private output");
+        const publicOut = path.resolve(v.root, args.get("public-out")!), privateOut = path.resolve(v.root, args.get("private-out")!);
+        if (publicOut === privateOut) throw new Error("outputs alias");
+        bindReleaseGrant(await publicJson(v.root, args.get("roy-grant")!), freeze, execution.lock.stage, bundle.manifest_sha256, sha256Hex(bytes), rows, publicOut, privateOut);
+        // Reject symlinks/junctions in every destination ancestor, including outside the vault.
+        await contained(path.parse(publicOut).root, publicOut, true); await contained(path.parse(privateOut).root, privateOut, true);
+        await v.audit("authorized-release-public", publicOut); await v.audit("authorized-release-private", privateOut);
+        await durableNew(await contained(path.parse(publicOut).root, publicOut, true), rows.publicText);
+        await durableNew(await contained(path.parse(privateOut).root, privateOut, true), rows.privateText);
+      }
       return 0;
-    }
-    if (!args.get("run") || !args.get("freeze")) throw new Error("heldout export needs exact run/freeze");
-    const v = await openVault(args, "export-s45");
-    const dir = await contained(v.vault, path.resolve(v.vault, args.get("run")!));
-    releaseOwner = await exclusive(await v.destination(path.join(dir, "OWNER.lock")), `export-${process.pid}`);
-    const execution = await loadExecution(v, dir, true);
-    const freeze = await verifyRunFreeze(v, execution, args.get("freeze")!, args.get("reports") ?? path.join(dir, "reports"));
-    const bytes = await v.read(args.get("bundle")!);
-    const bundle = ExportBundleSchema.parse(JSON.parse(bytes.toString("utf8")));
-    bindExportToRun(bundle, execution, JSON.parse((await v.readKey("protocol/preregistration.json")).toString("utf8")));
-    const manifestBytes = await v.readKey("corpus/manifest.public.json");
-    if (sha256Hex(manifestBytes) !== freeze.corpus_sha256) throw new Error("frozen corpus drift");
-    bindExportToManifest(bundle, JSON.parse(manifestBytes.toString("utf8")));
-    const release = args.has("release-authorized"), rows = exportRows(bundle, release);
-    if (!release) {
-      if (args.get("private-out") || args.get("roy-grant")) throw new Error("unscoped release");
-      await durableNew(await v.destination(args.get("public-out")!), rows.publicText);
-    } else {
-      if (!args.get("roy-grant") || !args.get("private-out")) throw new Error("release needs scoped public grant/private output");
-      const publicOut = path.resolve(v.root, args.get("public-out")!), privateOut = path.resolve(v.root, args.get("private-out")!);
-      if (publicOut === privateOut) throw new Error("outputs alias");
-      bindReleaseGrant(await publicJson(v.root, args.get("roy-grant")!), freeze, execution.lock.stage, bundle.manifest_sha256, sha256Hex(bytes), rows, publicOut, privateOut);
-      // Reject symlinks/junctions in every destination ancestor, including outside the vault.
-      await contained(path.parse(publicOut).root, publicOut, true); await contained(path.parse(privateOut).root, privateOut, true);
-      await v.audit("authorized-release-public", publicOut); await v.audit("authorized-release-private", privateOut);
-      await durableNew(await contained(path.parse(publicOut).root, publicOut, true), rows.publicText);
-      await durableNew(await contained(path.parse(privateOut).root, privateOut, true), rows.privateText);
-    }
-    return 0;
+    } finally { if (releaseOwner) await releaseOwner(); }
   } catch { process.stderr.write(privateError("export-s45")); return 2; }
-  finally { if (releaseOwner) { try { await releaseOwner(); } catch { process.stderr.write(privateError("export-s45")); return 2; } } }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) process.exitCode = await runExportS45(process.argv.slice(2));

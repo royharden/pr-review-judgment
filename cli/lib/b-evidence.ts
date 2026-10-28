@@ -2,7 +2,7 @@ import { z } from "zod";
 import ts from "typescript";
 import path from "node:path";
 import { acceptAuthorBundle, authorCellHash, authorPrompt, QualifiedAuthorSchema, QualificationEvidenceSchema, qualificationAttemptHash, seedCandidates } from "../../src/core/protocol/b.ts";
-import { AuthorAuditSchema, GenerationHistorySchema } from "../../src/core/runstate/evidence.ts";
+import { AuthorAuditSchema } from "../../src/core/runstate/evidence.ts";
 import { WitnessReceiptSchema, Sha256Hex, RelPath } from "../../src/core/defectcorpus/schema.ts";
 import { hashCanonical } from "../../src/core/defectcorpus/hashes.ts";
 import { sha256Hex } from "../../src/core/hash/sha256.ts";
