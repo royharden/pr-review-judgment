@@ -5,7 +5,7 @@
 > (S41-INT subagent 0850) and contains **no held-out content**: no task, spec, code, test, label or example of any
 > held-out item. The gate meanings below follow the adopted Claude plan §7.5 plus PLAN K21; no gate is claimed
 > passed. Authoring also requires the pre-generation commitment and the deferred G8 receipt in section 3. Dirty
-> Mode remains active: no execution, installations, sandbox probes, live calls or credential access is authorized.
+> Mode remains active with Round 2 bounded local validation; live calls and credential access stay forbidden.
 
 You are the independent corpus steward for S41 `pr-review-judgment`. You write the held-out corpus H01–H10 in the
 sealed vault, spec-first, with hidden suites and labels. A separate independent validator diagnoses it blind, runs
@@ -22,7 +22,7 @@ every witness, and audits stratum B (`docs/VALIDATOR-PACKET.md`). Neither of you
    `claim --model <your model> --title S41Steward` if unclaimed. Enroll in the Bolt.New workspace registry and in this
    app's registry as `Bolt.New\AGENTS.md` describes. Put `Callsign: <name>` on your first reply and sign every file
    you write with it. Roy's grant names you by this callsign, so claim **before** Roy writes the grant.
-3. **Roy's grant.** Roy writes `.heldout\grants\roy-grant-R3.json` (the builder never writes it):
+3. **Roy's grant.** Roy writes `grants\roy-grant-R3.json` (the builder never writes it):
 
    ```json
    {
@@ -172,7 +172,7 @@ enforces the shapes.
   | G4 counterparts: every correct and near-miss head passes its full suite, including the guard, twice | the same validator receipts file | validator |
   | G5 quotas after the single repair window: exactly 40 defects, 10/group, ≥14 operator and ≥14 hand; size/near-miss limits in section 3 | `.heldout\steward\QUOTAS.json` (final counts, files/lines and input sizes) | steward, checked by validator |
   | G6 validation: no retained item is disputed after blind diagnosis, reconciliation and one repair window | `.heldout\validator\VALIDATION.jsonl` (explicit final resolution per item; unresolved disputes removed within the window, with quotas rechecked; failure means NO-GO) | validator |
-  | G7 leakage: neutral-id scan clean and no held-out bytes in the inner repo | `.heldout\validator\LEAKSCAN.json` (0 word/fence hits, no label fields in reviewer/public projection, and repo-custody audit; hashes/receipts are allowed) | validator |
+  | G7 leakage: neutral-id scan clean and no held-out bytes in the inner repo | `.heldout\validator\G7-EVIDENCE.json` binding the immutable verification summary and separate `LEAKSCAN.json` audit (0 word/fence hits, no label fields in reviewer/public projection, and repo-custody audit; hashes/receipts are allowed) | validator |
   | G8 difficulty, dev only: frozen diff-heuristic catches <80% of dev defects before held-out authoring | `pr-review-judgment/corpus/DEV-DIFFICULTY.json` (receipt defined in section 3; rules and corpus digests plus timing) | builder produces dev-only receipt after R7; validator checks it |
   | G9 custody/blindness: both signed attestations plus receipts-only access log | `.heldout\attestations\G9-EVIDENCE.json` (single co-signed digest-binding document, below) | steward + validator |
 
@@ -185,17 +185,18 @@ enforces the shapes.
   every digest and prefix length before co-signing. No raw access entries or held-out bytes are embedded. These
   are procedural attestations, not cryptographic proof of blindness; no G9 file is authored by the builder.
 
-  Command (outer shell, after Dirty Mode is closed under R7):
+  Command (outer shell, authorized validator/admission phase only; all actual gates must be satisfied):
 
       npx tsx pr-review-judgment/cli/admit.ts --root . --lineage pr-review-judgment/protocol/builder-lineage.json \
         --out pr-review-judgment/corpus/ADMISSION.json --invoked-by <callsign> --decision GO \
-        --steward <steward> --validator <validator> --roy-grant .heldout/grants/roy-grant-R3.json \
+        --steward <steward> --validator <validator> --roy-grant grants/roy-grant-R3.json \
         --gate G1=.heldout/steward/RIGHTS.json --gate G2=.heldout/attestations/developers.json \
         --gate G3=.heldout/runs/verify-<date>/witness-receipts.jsonl \
         --gate G4=.heldout/runs/verify-<date>/witness-receipts.jsonl \
         --gate G5=.heldout/steward/QUOTAS.json --gate G6=.heldout/validator/VALIDATION.jsonl \
-        --gate G7=.heldout/validator/LEAKSCAN.json --gate G8=pr-review-judgment/corpus/DEV-DIFFICULTY.json \
-        --gate G9=.heldout/attestations/G9-EVIDENCE.json
+        --gate G7=.heldout/validator/G7-EVIDENCE.json --gate G8=pr-review-judgment/corpus/DEV-DIFFICULTY.json \
+        --gate G9=.heldout/attestations/G9-EVIDENCE.json \
+        --verify-summary .heldout/runs/verify-<date>/verify-summary.json
 
   Without a valid grant the record stays `PENDING_ROY_APPOINTMENT`; any failed check writes NO-GO with the reasons.
 
@@ -205,3 +206,33 @@ After a GO, the builder sees only receipts, hashes and statuses (`corpus-verify 
 operations (`run`, `author-b`, `seed-b`, `eval`, B-PIN) are run by the builder only in non-printing modes with every
 held-out-bearing artefact kept under `.heldout\runs\`, or, if Roy chooses, by the validator (K23). You keep the vault
 sealed until Roy's R4 publication decision.
+
+## Round 2 clarification
+
+Bounded local validation is now authorized under the outer-shell Round 2 decision while Dirty Mode stays open.
+No actual steward/validator or human-independent stand-in is appointed by this packet. Builder lineage remains
+excluded. Any authorized delegated stand-in must be outside builder lineage and label construction work
+"delegated stand-in, not human-independent" and "independence PENDING - Roy"; it cannot fabricate a Roy grant,
+independence attestation, witness receipt or admission GO. The current builder has no such independent seat.
+The public R3 appointment file belongs at outer-shell `grants/roy-grant-R3.json`, outside the sealed vault; it
+contains control identities, never held-out source. Actual held-out bytes and appointee transcripts stay sealed.
+
+### G7 binding without dropping the leakage/custody audit
+
+The validator writes `.heldout/validator/G7-EVIDENCE.json` only after both companions exist. Its closed shape is:
+
+```json
+{
+  "schema": "g7-verification-evidence/v1",
+  "verification_summary": {"path": ".heldout/runs/verify-<date>/verify-summary.json", "sha256": "<exact summary SHA-256>"},
+  "leakage_custody": {"path": ".heldout/validator/LEAKSCAN.json", "sha256": "<exact audit SHA-256>"}
+}
+```
+
+Paths are safe POSIX paths relative to the declared `--root` (the outer shell in the command). The wrapper,
+summary and audit must be distinct files, without symlink/hardlink aliasing; both companions stay inside the
+canonical vault. The generated summary remains immutable. Admission reads/hashes both companions without
+printing private contents; it checks summary grant/receipt bindings and exact per-change/task input-ceiling
+coverage. The audit retains the original neutral-ID, leakage, projection and no-held-out-bytes-in-repo obligations.
+Hashes prove file binding, not procedural truth, human independence or sandbox qualification. No builder authors
+this wrapper, audit or real held-out summary. Old G7 files/summaries must be regenerated by the authorized validator.

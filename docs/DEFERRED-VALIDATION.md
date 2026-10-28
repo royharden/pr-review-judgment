@@ -1,8 +1,11 @@
 # Deferred validation
 
-This repository was built in **Dirty Mode** (static construction only). Nothing listed here has been run. Each row
-says what is unverified, why, and the exact command to run once Roy closes Dirty Mode for the validation phase
-(R7 in the project's Roy decisions request). Running any of them is a Roy-gated step; none is approved yet.
+This repository was initially built in **Dirty Mode** (static construction only). The original ledger below records
+that construction checkpoint. Round 2 of the outer-shell delegated decisions (2026-10-27) now permits bounded
+local dependency installation and offline validation while Dirty Mode remains open. It does not authorize live
+model calls, held-out access by builders, publication or new Docker images/pulls. See the current Round 2 results
+at the end of this document; historical "not run" and "needs R7" entries below are superseded only where a
+specific completed check is recorded. Unrecorded checks remain unverified.
 
 Static checks that *were* performed during construction: `node --check` on every `.ts`/`.js` file; a parse of
 each `.ts` file's type-stripped output (`node:module` `stripTypeScriptTypes` in strip mode, then `node --check` on
@@ -69,3 +72,52 @@ wrong-inventory release cases. See docs/CLI.md for exact source flag contracts. 
 Explicit carryover: the 12,000-token ceiling is enforced before dispatch; separate admission-time oversize enforcement is not claimed complete. Confirm/complete that gate with the appointed validator during the admission/validation phase before GO. Current source-only construction does not authorize held-out consumption.
 
 M4 xhigh validation must cover base-identical author inputs, appointment-loader lexical binding, and an immutable admitted B task-set commitment carried across a separately derived review manifest. Exercise per-run locked-input snapshots before first reservation, historical input drift and actual installed evaluator-source drift after R7; no such execution has occurred.
+
+
+## Round 2 local validation results — 2026-10-27
+
+These results supersede the corresponding historical deferred statements above. They do not close Dirty Mode
+or satisfy real held-out admission, independent authorship, sandbox qualification or live provider compatibility.
+
+- Install: npm install --ignore-scripts --no-audit --no-fund PASS, 203 packages; lockfile created. KAISER-PRO
+  free RAM before installation: 7,166,924 KiB, above 3 GB. No install scripts ran. npm warned that resolved ESLint
+  9.39.5 is no longer supported; no unsolicited dependency migration was made.
+- npm run typecheck PASS for viewer/core and CLI/tests; npm run lint PASS.
+- Full offline suite: node node_modules/vitest/vitest.mjs run --maxWorkers=2 --reporter=dot PASS:
+  46 files, 366 tests in 89.38 seconds, before the final G7 audit-wrapper correction.
+- After final G7 wrapper/source review: npx --no-install vitest run tests/cli/admit.test.ts
+  tests/cli/corpus-verify.test.ts tests/core/protocol/admission-ceiling.test.ts tests/core/protocol/lock.test.ts
+  --maxWorkers=1 PASS: 4 files, 22 tests in 18.37 seconds. This covers audit/summary binding, rendered-input
+  coverage and synthetic grant/verify/admit integration. All test identities/tasks/receipts are synthetic;
+  no actual outer vault was read or populated.
+- npm run build PASS: 141 modules, 337.63 kB main JavaScript (96.77 kB gzip). Two dependency PURE-comment
+  annotation warnings from zod were nonfatal. Build output remains ignored.
+- Development manifest CLI PASS: 36 records generated, runtime_validated:false. Private candidate preserved
+  in the OUTER shell at agentops/validation-round2/manifest.dev.candidate.json. Public pending stub unchanged.
+  Generated MIT markers are proposed schema metadata, not public license adoption or publication authority.
+- Browser source comparison PASS for all six dev specs/clean heads; absent base files become empty strings.
+  No hidden_tests/witness_test fields appear in browser data. This checks data, not browser layout.
+- Separate source reviews PASS within builder lineage. G7 review corrected task-inventory joining, preserved
+  the separate procedural audit, and checked vault-before-read ordering plus bigint Windows file identities.
+  Hash binding does not prove procedural audit truth.
+- Earlier failures: initial suite 346 passed/16 failed, lint 34 errors, typecheck module injection mismatch.
+  Fixes cover Windows short-path fixture roots, current budget/seed expectations, pure-core decoder injection,
+  cleanup return behavior and unused bindings. B lifecycle initially timed out at 30/90 seconds on the loaded
+  host; final full suite passed with its bounded 180-second test limit. Production custody was not weakened.
+
+### Still unverified or blocked
+
+Required s41-prj-witness:0.1.0 image absent locally. Round 2 permits existing local images only; no image
+build/pull/container/probe/witness ran. Reporter same-uid tampering remains a pre-GO qualification issue.
+Actual dev witnesses, sandbox isolation, dev-difficulty activation, real B execution and admission stay pending.
+
+Viewer server/browser not started: agent-ports registered S41PRJ/round2-viewer at 127.0.0.1:23400, but
+preflight was UNKNOWN because Docker holders could not be inspected (host port free). Claim held;
+no resource launched or existing stack changed. Browser interaction/layout remains deferred.
+
+No independent non-builder steward/validator stand-in was available. No appointments, real held-out content,
+labels, attestations or GO were fabricated. Independence PENDING - Roy. Real keys/accounts/model pins/prices
+are missing; six named placeholders/destinations are in ACTIVATION-PLACEHOLDERS.md. Live execution disabled,
+stage caps zero. Testing spend USD 0 of USD 40. No push, remote, public license adoption, import or publication.
+
+Validated source checkpoint: local commit 47b0bb0. Final CLI/tests no-emit typecheck and affected-test ESLint also passed after the last fixture update.

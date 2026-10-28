@@ -22,8 +22,9 @@ been exercised against a live API. Unknown billing retains the worst-case reserv
 session cost is unallocated, not zero. Roy's USD 40 ceiling is an aggregate upper bound; it cannot cover every worst-case planned
 attempt, so an eventually authorized run may stop partial. No model pair, stage allocation, key or live call is approved by that ceiling.
 
-No dependency install, no-emit typecheck, lint, test, build, browser journey, Docker probe or witness has run. Static parsing cannot
-establish type correctness, statistical correctness, sandbox isolation, provider compatibility, crash durability or usable rendering.
+Round 2 permits local dependency installation and offline validation. Actual completed checks are recorded in
+[DEFERRED-VALIDATION.md](DEFERRED-VALIDATION.md); they do not establish sandbox isolation, provider compatibility,
+held-out validity or usable browser rendering. Docker probes, witnesses and live calls remain NOT RUN.
 The dev manifest is pending activation. The sandbox fails closed pending qualification; the intended security controls are unproven.
 The exact activation/validation work is in [DEFERRED-VALIDATION.md](DEFERRED-VALIDATION.md).
 

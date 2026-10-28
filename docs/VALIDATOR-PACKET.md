@@ -2,10 +2,10 @@
 
 > **DRAFT, awaiting Roy's appointment (R3).** Nobody is appointed. This packet gives no authority by itself: work
 > starts only after Roy writes a `roy-grant/v1` file naming you as validator. Witness execution and sandbox probes
-> also need Dirty Mode closed (R7). It was written by the builder lineage (S41-INT subagent 0850) and contains **no
+> need the authorized qualified local sandbox; Round 2 permits bounded local validation. It was written by the builder lineage (S41-INT subagent 0850) and contains **no
 > held-out content**. Gate meanings follow the adopted Claude plan §7.5 plus PLAN K21; no gate is claimed passed.
 > Before steward authoring, verify the G2 pre-generation commitment and the deferred G8 dev-difficulty receipt in
-> `docs/STEWARD-PACKET.md` §3. No execution, installations, live calls or credential access is authorized in Dirty Mode.
+> `docs/STEWARD-PACKET.md` §3. Only Round 2 bounded local validation is authorized; live calls and credential access stay forbidden.
 
 You are the independent validator for S41 `pr-review-judgment`. The steward writes the held-out corpus H01–H10
 (`docs/STEWARD-PACKET.md`). You diagnose it **blind**, reconcile against the labels, run every held-out witness check
@@ -23,7 +23,7 @@ different session from the steward and from every builder session.
    `claim --model <your model> --title S41Validator` if unclaimed; enroll in the workspace and app registries as
    `Bolt.New\AGENTS.md` describes. Claim before Roy writes the grant (it names you by callsign). Put
    `Callsign: <name>` on your first reply and sign every file you write.
-3. **Grant.** Do not start until `.heldout\grants\roy-grant-R3.json` (schema in `docs/STEWARD-PACKET.md` §1 and
+3. **Grant.** Do not start until `grants\roy-grant-R3.json` (schema in `docs/STEWARD-PACKET.md` §1 and
    `src/core/admission/grant.ts`) exists and names you as `validator`. `corpus-verify` refuses a held-out run whose
    `--operator-callsign` is not the grant's validator or is in builder lineage.
 4. **Where you work.** Only inside `...\pr-review-judgment\.heldout\`; you run the inner repo's tools but never edit
@@ -96,7 +96,7 @@ Run in your own session, after Dirty Mode is closed (R7), from the inner repo, o
 
        npx tsx cli/corpus-verify.ts --split heldout --corpus ../.heldout/corpus --image <name@sha256:digest> \
          --probe-receipt ../.heldout/runs/sandbox-probe-receipt.json --seed 4101 --operator-callsign <you> \
-         --roy-grant ../.heldout/grants/roy-grant-R3.json --out ../.heldout/runs/verify-<date> \
+         --roy-grant ../grants/roy-grant-R3.json --out ../.heldout/runs/verify-<date> \
          --access-log ../.heldout/access.log.jsonl
 
    It needs no admission GO (GO depends on these receipts). It refuses unless you are the grant's validator, outside
@@ -148,3 +148,19 @@ You are a signer (`--validator`), never the invoker of record unless Roy says so
 Held-out stage operations are run either by the builder in non-printing modes with all held-out-bearing artefacts
 under `.heldout\runs\`, or by you if Roy chooses (K23). In either case only aggregate tables and hashes leave the vault
 before the report is frozen, and labels stay sealed until Roy's R4.
+
+## Round 2 clarification
+
+Bounded local validation is now authorized under the outer-shell Round 2 decision while Dirty Mode stays open.
+No actual steward/validator or human-independent stand-in is appointed by this packet. Builder lineage remains
+excluded. Any authorized delegated stand-in must be outside builder lineage and label construction work
+"delegated stand-in, not human-independent" and "independence PENDING - Roy"; it cannot fabricate a Roy grant,
+independence attestation, witness receipt or admission GO. The current builder has no such independent seat.
+The public R3 appointment file belongs at outer-shell `grants/roy-grant-R3.json`, outside the sealed vault; it
+contains control identities, never held-out source. Actual held-out bytes and appointee transcripts stay sealed.
+
+For admission, retain your separate `LEAKSCAN.json` procedural audit and the generated immutable
+`verify-summary.json`. Bind both via `.heldout/validator/G7-EVIDENCE.json` as defined in the steward packet,
+and supply `--verify-summary` with that same summary path. Admission checks exact companion path/hash bindings,
+per-change 12,000 UTF-8-byte input bounds, receipt coverage and the ten-task inventory; these mechanical checks
+do not prove the truth of your audit or authorize a builder to become an appointee.
