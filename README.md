@@ -1,6 +1,6 @@
 # Review Judgment
 
-> **NOT MEASURED · bounded local validation in Dirty Mode.**
+> **NOT MEASURED Â· bounded local validation in Dirty Mode.**
 > Examples remain synthetic and stamped MOCK. Actual offline check results and unresolved qualification are in docs/DEFERRED-VALIDATION.md.
 > Testing hard ceiling: USD 40. No supplied access, no live calls, USD 0 spent; execution stays disabled.
 
@@ -73,4 +73,4 @@ boundary and external offline requirements; no import, remote, publication or de
 Jev is not integrated: this preregistered experiment needs fixed reviewer contracts, rather than an additional judging model.
 Reuse provenance is in [VENDORED.md](VENDORED.md); local implementations are not claimed as verified upstream code.
 
-MIT; see [LICENSE](LICENSE).
+Public license adoption remains pending Roy; keep this repository private.

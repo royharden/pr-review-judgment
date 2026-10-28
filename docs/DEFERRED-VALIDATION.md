@@ -74,7 +74,7 @@ Explicit carryover: the 12,000-token ceiling is enforced before dispatch; separa
 M4 xhigh validation must cover base-identical author inputs, appointment-loader lexical binding, and an immutable admitted B task-set commitment carried across a separately derived review manifest. Exercise per-run locked-input snapshots before first reservation, historical input drift and actual installed evaluator-source drift after R7; no such execution has occurred.
 
 
-## Round 2 local validation results — 2026-10-27
+## Round 2 local validation results â€” 2026-10-27
 
 These results supersede the corresponding historical deferred statements above. They do not close Dirty Mode
 or satisfy real held-out admission, independent authorship, sandbox qualification or live provider compatibility.
@@ -121,3 +121,7 @@ are missing; six named placeholders/destinations are in ACTIVATION-PLACEHOLDERS.
 stage caps zero. Testing spend USD 0 of USD 40. No push, remote, public license adoption, import or publication.
 
 Validated source checkpoint: local commit 47b0bb0. Final CLI/tests no-emit typecheck and affected-test ESLint also passed after the last fixture update.
+
+
+## Latest Roy stop: RAM hold
+No Docker or installs now. Earlier Round 2 execution allowances do not authorize work during this stop. Resume only on Roy's relaunch; exact later commands, prerequisites, remaining questions and USD 0 of 40 spend are in [RELAUNCH-HANDOFF.md](RELAUNCH-HANDOFF.md). No earlier validation result changed.

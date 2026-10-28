@@ -39,3 +39,7 @@ Current local validation is recorded in DEFERRED-VALIDATION.md. Before actual ad
 immutable verification summary and separate procedural leakage/custody audit through the closed G7 wrapper
 specified in STEWARD-PACKET.md. Do not fill evidence references with invented digests or successful attestations.
 The app witness image and a trustworthy isolated reporter are still unavailable/unqualified.
+
+
+## Latest Roy stop: RAM hold
+No Docker or installs now. Earlier Round 2 execution allowances do not authorize work during this stop. Resume only on Roy's relaunch; exact later commands, prerequisites, remaining questions and USD 0 of 40 spend are in [RELAUNCH-HANDOFF.md](RELAUNCH-HANDOFF.md). No earlier validation result changed.
