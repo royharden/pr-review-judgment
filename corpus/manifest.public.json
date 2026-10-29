@@ -1,0 +1,36 @@
+{
+  "schema": "public-manifest/v1",
+  "split": "dev",
+  "pending_activation": true,
+  "status_note": "PENDING ACTIVATION. Record ids (c_ + sha256[:10] of the canonical change JSON) and manifestHash are sha256 values over canonical JSON produced by repository code (src/core/defectcorpus/hashes.ts canonicalJson + changeContentSha256). Computing them exactly needs that code to run, which Dirty Mode forbids, so no hash is written and no record is listed. Generation is DEFERRED-VALIDATION DV-26. Nothing here is guessed.",
+  "source": "corpus/dev",
+  "labels_authority": "builder_dev_not_independent",
+  "license": "MIT",
+  "record_schema": "PublicManifestRecordSchema (src/core/defectcorpus/schema.ts)",
+  "record_template": {
+    "id": null,
+    "taskId": "T##",
+    "manifestHash": null,
+    "license": "MIT",
+    "embargoStatus": "open",
+    "spec": "<task.spec>",
+    "files": [{ "path": "<touched path>", "base": "<base content or null for an added file>", "head": "<head content>" }]
+  },
+  "generation_rule": [
+    "For every task directory under corpus/dev and every variant in its variants/ folder, build the record with src/core/defectcorpus/projection.ts toPublicRecord(variant, task, { manifestHash, embargoStatus: 'open' }); files are the touched files only.",
+    "Sort records by id (code-unit order). The order must not reveal which change is the correct, near-miss or seeded head.",
+    "manifestHash = sha256 of canonicalJson(records sorted by id, each without its manifestHash field); then set it on every record.",
+    "Validate every record with PublicManifestRecordSchema and assert ids are unique (ids.ts assertUniqueNeutralIds)."
+  ],
+  "manifest_sha256": null,
+  "tasks": [
+    { "taskId": "T01", "records_expected": 6 },
+    { "taskId": "T02", "records_expected": 6 },
+    { "taskId": "T03", "records_expected": 6 },
+    { "taskId": "T04", "records_expected": 6 },
+    { "taskId": "T05", "records_expected": 6 },
+    { "taskId": "T06", "records_expected": 6 }
+  ],
+  "records_expected": 36,
+  "records": []
+}

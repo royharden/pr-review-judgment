@@ -1,0 +1,20 @@
+{
+  "variant_id": "T06.d1",
+  "task_id": "T06",
+  "kind": "defect",
+  "group": "G-ASY",
+  "tag": "busy-flag-released-early",
+  "severity": "high",
+  "origin": "operator:RemoveAwait",
+  "witness_test": {
+    "path": "hidden/step-runner.test.ts",
+    "name": "refuses a second batch while one is running"
+  },
+  "head_files": [
+    {
+      "path": "src/step-runner.ts",
+      "content": "// Runs a batch of asynchronous steps in order, retrying steps that fail with a retryable error.\nexport interface Step {\n  readonly name: string;\n  run(): Promise<void>;\n}\n\nexport type RunResult =\n  | { readonly status: \"ok\"; readonly attempts: number }\n  | { readonly status: \"failed\"; readonly failedStep: string; readonly attempts: number; readonly error: unknown };\n\nexport interface StepEvent {\n  readonly step: string;\n  readonly attempt: number;\n  readonly outcome: \"ok\" | \"retry\" | \"fail\";\n}\n\nexport interface RunnerOptions {\n  readonly maxAttempts: number;\n  readonly sleep: (attempt: number) => Promise<void>;\n  readonly onEvent?: (event: StepEvent) => void;\n}\n\nexport class RunnerBusyError extends Error {\n  constructor() {\n    super(\"a batch is already running\");\n    this.name = \"RunnerBusyError\";\n  }\n}\n\nfunction isRetryable(error: unknown): boolean {\n  return typeof error === \"object\" && error !== null && (error as { retryable?: unknown }).retryable === true;\n}\n\nasync function runBatch(steps: readonly Step[], options: RunnerOptions): Promise<RunResult> {\n  let attempts = 0;\n  for (const step of steps) {\n    for (let attempt = 1; ; attempt++) {\n      attempts += 1;\n      try {\n        await step.run();\n        options.onEvent?.({ step: step.name, attempt, outcome: \"ok\" });\n        break;\n      } catch (error) {\n        const retry = isRetryable(error) && attempt < options.maxAttempts;\n        options.onEvent?.({ step: step.name, attempt, outcome: retry ? \"retry\" : \"fail\" });\n        if (!retry) return { status: \"failed\", failedStep: step.name, attempts, error };\n      }\n      await options.sleep(attempt);\n    }\n  }\n  return { status: \"ok\", attempts };\n}\n\nexport function createRunner(options: RunnerOptions) {\n  if (!Number.isInteger(options.maxAttempts) || options.maxAttempts < 1) {\n    throw new RangeError(\"maxAttempts must be an integer >= 1\");\n  }\n  let busy = false;\n  return {\n    async run(steps: readonly Step[]): Promise<RunResult> {\n      if (busy) throw new RunnerBusyError();\n      busy = true;\n      try {\n        return runBatch(steps, options);\n      } finally {\n        busy = false;\n      }\n    },\n  };\n}\n"
+    }
+  ],
+  "labels_authority": "builder_dev_not_independent"
+}

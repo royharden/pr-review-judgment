@@ -1,0 +1,11 @@
+{
+  "schema": "provider-fixture/v1",
+  "mock": true,
+  "synthetic": true,
+  "note": "Synthetic, hand-written by the builder (S41 M3) for parser tests. It is NOT a recording of a live API call and has not been checked against the live OpenAI Responses or Anthropic Messages API (docs/DEFERRED-VALIDATION.md).",
+  "description": "HTTP 200 whose body is not valid JSON (cut off); the parser must report provider_error with billing unknown, never zero cost",
+  "provider": "openai",
+  "api": "responses",
+  "http_status": 200,
+  "body_text": "{\"id\":\"resp_synthetic_0005\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"mess"
+}

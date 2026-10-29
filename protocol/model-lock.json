@@ -2,7 +2,7 @@
   "schema": "model-lock/v1",
   "status": "unlocked",
   "requires": ["R2"],
-  "note": "Every field is null until Roy answers R2 in writing. The runtime refuses any null field (PLAN §3.1, M4). The planned pair in PLAN §3.1 is a recommendation, not a lock, and is deliberately not written here.",
+  "note": "Round 2 (2026-10-27) permits planning with named placeholders, not live calls. All lock fields remain null; the runtime refuses null fields (PLAN §3.1, M4). docs/ACTIVATION-PLACEHOLDERS.md lists the missing exact model pins and Roy-supplied access. Placeholder strings are documentation only, never valid model locks or admission evidence. The planned pair remains a recommendation, not a lock.",
   "locked_at": null,
   "roy_grant": null,
   "reviewers": {

@@ -216,6 +216,7 @@ describe("AdmissionRecordSchema and corpus/ADMISSION.json", () => {
     const go = {
       ...pending,
       status: "GO",
+      requires: [],
       gates,
       signers: { steward: "AA01_Gemini_Steward", validator: "AB02_Grok_Validator" },
       roy_grant: { path: "grants/R3.md", sha256: HASH2 },
@@ -224,6 +225,7 @@ describe("AdmissionRecordSchema and corpus/ADMISSION.json", () => {
     expect(AdmissionRecordSchema.safeParse(go).success).toBe(true);
     expect(AdmissionRecordSchema.safeParse({ ...go, signers: { steward: "AA01_X", validator: "AA01_X" } }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, roy_grant: null }).success).toBe(false);
+    expect(AdmissionRecordSchema.safeParse({ ...go, requires: ["R3"] }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, gates: { ...gates, G9: { evidence: null, sha256: null } } }).success).toBe(false);
     expect(AdmissionRecordSchema.safeParse({ ...go, gates: { ...gates, G1: { evidence: "/abs.json", sha256: HASH } } }).success).toBe(false);
   });
@@ -246,7 +248,7 @@ describe("protocol files: every Roy-dependent field is unset", () => {
     for (const model of Object.values(prices.models)) for (const value of Object.values(model)) expect(value).toBeNull();
   });
 
-  it("budget.json is disabled with every approved cap 0", () => {
+  it("budget.json retains Roy USD40 ceiling but disables execution with stage caps zero", () => {
     const budget = readJson("protocol/budget.json") as {
       requires: string[];
       enabled: boolean;
@@ -256,8 +258,8 @@ describe("protocol files: every Roy-dependent field is unset", () => {
     };
     expect(budget.requires).toEqual(["R1"]);
     expect(budget.enabled).toBe(false);
-    expect(budget.approved_usd).toBe(0);
-    expect(budget.recommended_usd).toBe(150);
+    expect(budget.approved_usd).toBe(40);
+    expect(budget.recommended_usd).toBe(40);
     expect(Object.keys(budget.sub_caps).sort()).toEqual(["preparation", "stratum_a", "stratum_b"]);
     for (const cap of Object.values(budget.sub_caps)) expect(cap.approved_usd).toBe(0);
   });
@@ -276,7 +278,7 @@ describe("protocol files: every Roy-dependent field is unset", () => {
     expect(pre.status).toBe("draft_unlocked");
     expect(pre.localization).toMatchObject({ k_primary: 2, k_columns: [0, 5], span_cap_lines: 20 });
     expect(pre.repeats).toEqual({ heldout: 3, dev: 1 });
-    expect(pre.seeds).toEqual({ split: 4101, bootstrap_stratum_a: 4102, bootstrap_stratum_b: 4103 });
+    expect(pre.seeds).toEqual({ split: 4101, bootstrap_stratum_a: 4102, bootstrap_stratum_b: 4103, presentation_order: 4104 });
     expect(pre.bootstrap.draws).toBe(10000);
     expect(pre.tokens).toMatchObject({ input_ceiling: 12000, output_cap: 8000 });
     expect(pre.estimability).toMatchObject({ dev_hit_upper: 0.9, dev_hit_lower: 0.1, max_non_valid_share: 0.15 });

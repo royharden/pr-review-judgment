@@ -1,0 +1,45 @@
+{
+  "schema": "provider-fixture/v1",
+  "mock": true,
+  "synthetic": true,
+  "note": "Synthetic, hand-written by the builder (S41 M3) for parser tests. It is NOT a recording of a live API call and has not been checked against the live OpenAI Responses or Anthropic Messages API (docs/DEFERRED-VALIDATION.md).",
+  "description": "OpenAI Responses: completed, one output_text answer (valid review JSON), reasoning_tokens 0",
+  "provider": "openai",
+  "api": "responses",
+  "http_status": 200,
+  "body": {
+    "id": "resp_synthetic_0001",
+    "object": "response",
+    "created_at": 1767225600,
+    "status": "completed",
+    "error": null,
+    "incomplete_details": null,
+    "model": "synthetic-openai-reviewer",
+    "output": [
+      {
+        "id": "msg_synthetic_0001",
+        "type": "message",
+        "status": "completed",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/window.ts\",\"startLine\":12,\"endLine\":13,\"severity\":\"high\",\"claim\":\"The upper bound check uses < where the specification requires the last slot to be included.\",\"confidence\":0.8,\"disposition\":\"requires_change\"}]}",
+            "annotations": []
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 1800,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 420,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 2220
+    }
+  }
+}

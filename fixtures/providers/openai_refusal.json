@@ -1,0 +1,44 @@
+{
+  "schema": "provider-fixture/v1",
+  "mock": true,
+  "synthetic": true,
+  "note": "Synthetic, hand-written by the builder (S41 M3) for parser tests. It is NOT a recording of a live API call and has not been checked against the live OpenAI Responses or Anthropic Messages API (docs/DEFERRED-VALIDATION.md).",
+  "description": "OpenAI Responses: completed, message content is a refusal part instead of output_text",
+  "provider": "openai",
+  "api": "responses",
+  "http_status": 200,
+  "body": {
+    "id": "resp_synthetic_0004",
+    "object": "response",
+    "created_at": 1767225603,
+    "status": "completed",
+    "error": null,
+    "incomplete_details": null,
+    "model": "synthetic-openai-reviewer",
+    "output": [
+      {
+        "id": "msg_synthetic_0004",
+        "type": "message",
+        "status": "completed",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "refusal",
+            "refusal": "I can't help with that."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 1800,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 12,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 1812
+    }
+  }
+}

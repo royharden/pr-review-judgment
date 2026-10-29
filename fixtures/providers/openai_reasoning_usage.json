@@ -1,0 +1,55 @@
+{
+  "schema": "provider-fixture/v1",
+  "mock": true,
+  "synthetic": true,
+  "note": "Synthetic, hand-written by the builder (S41 M3) for parser tests. It is NOT a recording of a live API call and has not been checked against the live OpenAI Responses or Anthropic Messages API (docs/DEFERRED-VALIDATION.md).",
+  "description": "OpenAI Responses: completed with a reasoning item (summary text) before the answer; usage reports reasoning_tokens inside output_tokens and cached input",
+  "provider": "openai",
+  "api": "responses",
+  "http_status": 200,
+  "body": {
+    "id": "resp_synthetic_0002",
+    "object": "response",
+    "created_at": 1767225601,
+    "status": "completed",
+    "error": null,
+    "incomplete_details": null,
+    "model": "synthetic-openai-reviewer",
+    "output": [
+      {
+        "id": "rs_synthetic_0002",
+        "type": "reasoning",
+        "summary": [
+          {
+            "type": "summary_text",
+            "text": "Checked the loop bounds against the specification."
+          }
+        ]
+      },
+      {
+        "id": "msg_synthetic_0002",
+        "type": "message",
+        "status": "completed",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "{\"verdict\":\"approve\",\"findings\":[]}",
+            "annotations": []
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 2400,
+      "input_tokens_details": {
+        "cached_tokens": 1024
+      },
+      "output_tokens": 3100,
+      "output_tokens_details": {
+        "reasoning_tokens": 2600
+      },
+      "total_tokens": 5500
+    }
+  }
+}

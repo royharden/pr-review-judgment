@@ -5,3 +5,16 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Local credentials and generated artifacts
+.creds/
+ArchiveManager-creds.txt
+*.pem
+*.key
+*.p12
+*.pfx
+*.zip
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

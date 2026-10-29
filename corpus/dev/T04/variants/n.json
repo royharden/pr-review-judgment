@@ -1,0 +1,20 @@
+{
+  "variant_id": "T04.n",
+  "task_id": "T04",
+  "kind": "near_miss",
+  "guard_test": {
+    "path": "hidden/release-approvals.test.ts",
+    "name": "approves a release once two maintainers agree"
+  },
+  "head_files": [
+    {
+      "path": "src/approval-errors.ts",
+      "content": "// Errors raised by the release approval desk.\nexport type ApprovalErrorCode = \"self_approval\" | \"not_maintainer\" | \"storage\";\n\nexport class ApprovalError extends Error {\n  readonly code: ApprovalErrorCode;\n\n  constructor(code: ApprovalErrorCode, message: string) {\n    super(message);\n    this.name = \"ApprovalError\";\n    this.code = code;\n  }\n}\n"
+    },
+    {
+      "path": "src/release-approvals.ts",
+      "content": "// Release approval rules.\nimport { ApprovalError } from \"./approval-errors.ts\";\n\nexport interface Release {\n  readonly id: string;\n  readonly authorId: string;\n}\n\nexport interface ApprovalStore {\n  append(event: { readonly releaseId: string; readonly userId: string }): Promise<void>;\n  markReleased(releaseId: string): Promise<void>;\n}\n\nexport interface DeskOptions {\n  readonly store: ApprovalStore;\n  readonly quorum: number;\n  readonly roles: ReadonlyMap<string, readonly string[]>;\n}\n\nexport interface ApprovalResult {\n  readonly approvals: number;\n  readonly released: boolean;\n}\n\nexport function hasQuorum(approverIds: readonly string[], quorum: number): boolean {\n  return new Set(approverIds).size >= quorum;\n}\n\nexport function createApprovalDesk(options: DeskOptions) {\n  if (!Number.isInteger(options.quorum) || options.quorum < 2) {\n    throw new RangeError(\"quorum must be an integer >= 2\");\n  }\n  const approvers = new Map<string, Set<string>>();\n  const released = new Set<string>();\n\n  function authorize(release: Release, userId: string): void {\n    if (userId === release.authorId) throw new ApprovalError(\"self_approval\", \"authors cannot approve their own release\");\n    const userRoles = options.roles.get(userId) ?? [];\n    if (!userRoles.includes(\"maintainer\")) throw new ApprovalError(\"not_maintainer\", \"only maintainers can approve\");\n  }\n\n  function approversOf(releaseId: string): Set<string> {\n    let current = approvers.get(releaseId);\n    if (current === undefined) {\n      current = new Set<string>();\n      approvers.set(releaseId, current);\n    }\n    return current;\n  }\n\n  return {\n    async approve(release: Release, userId: string): Promise<ApprovalResult> {\n      if (release.id === \"\" || release.authorId === \"\") {\n        throw new RangeError(\"release id and author id are required\");\n      }\n      authorize(release, userId);\n      const current = approversOf(release.id);\n      if (!current.has(userId)) {\n        try {\n          await options.store.append({ releaseId: release.id, userId });\n        } catch (error) {\n          throw new ApprovalError(\"storage\", `could not record the approval: ${String(error)}`);\n        }\n        current.add(userId);\n      }\n      const reached = hasQuorum([...current], options.quorum);\n      if (reached && !released.has(release.id)) {\n        released.add(release.id);\n        await options.store.markReleased(release.id);\n      }\n      return { approvals: current.size, released: reached };\n    },\n  };\n}\n"
+    }
+  ],
+  "labels_authority": "builder_dev_not_independent"
+}

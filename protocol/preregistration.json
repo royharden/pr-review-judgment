@@ -1,7 +1,10 @@
 {
   "schema": "preregistration/v1",
   "status": "draft_unlocked",
-  "requires": ["R1", "R2"],
+  "requires": [
+    "R1",
+    "R2"
+  ],
   "note": "Fixed protocol constants (PLAN §3, §6). draft_unlocked: nothing is locked or registered until Roy answers R1 and R2 and the protocol lock (M4) hashes this file. No dev review has run, so k and every threshold below were fixed before any outcome was seen.",
   "claim": {
     "estimand": "delta_self",
@@ -13,13 +16,21 @@
   "hit": "valid request_changes AND >= 1 localized finding with disposition requires_change",
   "localization": {
     "k_primary": 2,
-    "k_columns": [0, 5],
+    "k_columns": [
+      0,
+      5
+    ],
     "span_cap_lines": 20,
     "path_match": "exact_normalized",
     "region_policy": "region/v1"
   },
   "outcome_precedence": {
-    "defect": ["HIT", "DEFER", "WRONG-PLACE", "MISS"],
+    "defect": [
+      "HIT",
+      "DEFER",
+      "WRONG-PLACE",
+      "MISS"
+    ],
     "non_valid": "UNAVAILABLE"
   },
   "repeats": {
@@ -29,7 +40,8 @@
   "seeds": {
     "split": 4101,
     "bootstrap_stratum_a": 4102,
-    "bootstrap_stratum_b": 4103
+    "bootstrap_stratum_b": 4103,
+    "presentation_order": 4104
   },
   "bootstrap": {
     "draws": 10000,
@@ -58,7 +70,14 @@
       "defects_per_group": 6,
       "defects_total": 24
     },
-    "variants_per_task": ["clean", "near_miss", "defect", "defect", "defect", "defect"],
+    "variants_per_task": [
+      "clean",
+      "near_miss",
+      "defect",
+      "defect",
+      "defect",
+      "defect"
+    ],
     "stratum_b": {
       "dev_tasks": 2,
       "heldout_tasks": 10,
@@ -83,14 +102,37 @@
     "output_cap_includes_reasoning": true
   },
   "review_contract": {
-    "verdicts": ["approve", "request_changes"],
+    "verdicts": [
+      "approve",
+      "request_changes"
+    ],
     "max_findings": 10,
     "claim_max_chars": 600,
-    "severities": ["high", "medium", "low"],
-    "dispositions": ["requires_change", "acceptable", "uncertain"],
-    "confidence_range": [0, 1]
+    "severities": [
+      "high",
+      "medium",
+      "low"
+    ],
+    "dispositions": [
+      "requires_change",
+      "acceptable",
+      "uncertain"
+    ],
+    "confidence_range": [
+      0,
+      1
+    ]
   },
-  "response_statuses": ["valid", "schema_invalid", "refusal", "truncated", "timeout", "provider_error", "identity_mismatch", "unknown"],
+  "response_statuses": [
+    "valid",
+    "schema_invalid",
+    "refusal",
+    "truncated",
+    "timeout",
+    "provider_error",
+    "identity_mismatch",
+    "unknown"
+  ],
   "retries": {
     "repair_retry": false,
     "transport_retry_on_confirmed_pre_send_failure": 1

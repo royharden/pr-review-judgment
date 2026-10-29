@@ -1,0 +1,31 @@
+{
+  "schema": "provider-fixture/v1",
+  "mock": true,
+  "synthetic": true,
+  "note": "Synthetic, hand-written by the builder (S41 M3) for parser tests. It is NOT a recording of a live API call and has not been checked against the live OpenAI Responses or Anthropic Messages API (docs/DEFERRED-VALIDATION.md).",
+  "description": "Anthropic Messages: end_turn, one text block (valid review JSON)",
+  "provider": "anthropic",
+  "api": "messages",
+  "http_status": 200,
+  "body": {
+    "id": "msg_synthetic_0101",
+    "type": "message",
+    "role": "assistant",
+    "model": "synthetic-anthropic-reviewer",
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"verdict\":\"request_changes\",\"findings\":[{\"path\":\"src/window.ts\",\"startLine\":12,\"endLine\":13,\"severity\":\"high\",\"claim\":\"The upper bound check uses < where the specification requires the last slot to be included.\",\"confidence\":0.8,\"disposition\":\"requires_change\"}]}"
+      }
+    ],
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 1900,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 450
+    }
+  }
+}
